@@ -1,0 +1,35 @@
+<!-- galivelop-workflow v0.9.0 -->
+# Bitácora (traspaso)
+
+> Léela entera al empezar cualquier sesión. Lo que no está subido no existe: commit + push en cada punto estable,
+> con esta bitácora actualizada en el mismo commit. El flujo nunca la sobrescribe una vez creada.
+
+## Estado actual
+
+| Campo | Valor |
+|---|---|
+| **Rama** | _(rama de trabajo)_ |
+| **Fase / tarea** | _(fase y tarea en curso; con la rama camino de `main`, qué fases de antes van hechas: «1 hecha (`<commit>`), 2 pendiente»)_ |
+| **Último punto estable** | _(último commit con el check en verde, y qué trajo)_ |
+| **Siguiente paso** | _(el próximo paso concreto, para que la siguiente sesión no tenga que preguntar nada)_ |
+| **Check** | `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`: _(verde / rojo, y qué falla)_ |
+
+## Para la próxima publicación
+
+_(lo que va a `main` a continuación, y a qué espera)_
+
+## Hecho (5 últimas)
+
+1. _(fecha — qué se cerró, en dos líneas como mucho: el detalle está en el commit; la más antigua sale cuando hay más
+   de 5, el historial está en git)_
+
+## Pendiente
+
+Lo pendiente está en el archivo de `pendingFile` (`.claude/gw.json`; por defecto `docs/records/pending.md`): decisiones de la persona que bloquean algo, problemas conocidos, ideas sin planificar. Se añade y se quita allí; `handoff.py move-pending` rehace esta línea y `handoff.py add-pending "texto"` añade sin leer el archivo.
+
+## Comprobar el estado
+
+- Últimos commits: `git fetch origin <rama> && git log --oneline -5 origin/<rama>`.
+- El check: `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`.
+- Flujo bien montado: `python3 .claude/gw/scripts/doctor.py`.
+- Estado de la bitácora tal como lo recibe una sesión nueva: `python3 .claude/gw/scripts/recover.py --state`.
