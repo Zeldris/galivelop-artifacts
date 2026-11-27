@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# galivelop-workflow v0.9.0
+# galivelop-workflow v0.9.1
 """PreToolUse hook on `Read`, `Grep`, `Glob` and `Bash` (E74): warn when the MAIN session reads a path that is outside
 the project and inside another git repository. The rule is that another repo is read through a subagent that returns
 a summary with paths (skill gw-orchestrate-dealer), not in the main context; this hook makes it a mechanical notice.
@@ -10,7 +10,8 @@ for, so a subagent is never warned). Paths: `file_path` of Read, `path` of Grep 
 command (split like a shell, operators apart) that resolves to an existing path, which includes the value of `git -C`
 and of `cd`. A relative path resolves against the event's `cwd`. A path is "another repo" when its real path is not
 under the project root and one of its ancestors (or itself) has a `.git`, folder or file (worktrees, submodules).
-One warning per call, with every path and the root of its repo, the rule and how to turn it off: `otherRepoReadWarn`
+`python3 <path>/scripts/apply.py` is exempt (the workflow's updater, which gw-update requires): only that script word,
+so a read in the same command still warns. One warning per call, with every path and the root of its repo, the rule and how to turn it off: `otherRepoReadWarn`
 (boolean, default true) in .claude/gw.json; false = no warning.
 
 Output format (https://code.claude.com/docs/en/hooks.md, PreToolUse): a JSON object on stdout, exit 0,
@@ -109,6 +110,27 @@ def word_paths(word):
     return out
 
 
+def apply_script_words(parts, cwd):
+    """Indexes of the words that are `<dir>/scripts/apply.py` run by an interpreter in the same simple command
+    (`python3 -B <workflow>/scripts/apply.py ...`): running the workflow's own updater is not reading the clone (B49).
+    Only that exact script name, only when its root is the workflow (config.is_workflow), and only the first such word
+    after the interpreter; any other script or word of the command still counts."""
+    skip, interp = set(), False
+    for i, word in enumerate(parts):
+        if re.fullmatch(r"[;&|()<>]+", word):
+            interp = False
+        elif re.fullmatch(r"python[0-9.]*", os.path.basename(word)):
+            interp = True
+        elif interp and (word.endswith("/scripts/apply.py") or word == "scripts/apply.py"):
+            base = os.path.dirname(os.path.dirname(os.path.join(cwd, os.path.expanduser(word))))
+            if config.is_workflow(base):
+                skip.add(i)
+            interp = False
+        elif not word.startswith("-"):
+            interp = False
+    return skip
+
+
 def candidates(event, cwd):
     """The paths the call reads, as (path, must_exist) pairs."""
     tool, tool_input = event["tool_name"], event["tool_input"]
@@ -128,7 +150,9 @@ def candidates(event, cwd):
         if not isinstance(command, str) or not command:
             return []
         try:
-            return [(p, True) for w in words(command) for p in word_paths(w)] + [(cwd, True)]
+            parts = words(command)
+            skip = apply_script_words(parts, cwd)
+            return [(p, True) for i, w in enumerate(parts) if i not in skip for p in word_paths(w)] + [(cwd, True)]
         except ValueError:
             return []
     return [(value, False)] if isinstance(value, str) and value else []

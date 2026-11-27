@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# galivelop-workflow v0.9.0
+# galivelop-workflow v0.9.1
 """Check that a project has the workflow set up (used by /gw-doctor and CI). No AI, no network.
 
   python3 doctor.py            # one line per check: OK / WARN / FAIL, each problem with the command that fixes it
@@ -44,6 +44,7 @@ HERE = Path(__file__).resolve().parent
 sys.dont_write_bytecode = True  # no __pycache__ in the project's .claude/gw/scripts
 sys.path.insert(0, str(HERE))
 import config  # noqa: E402
+import handoff  # noqa: E402
 import session_log  # noqa: E402
 
 HEADER = re.compile(r"^# galivelop-workflow v(\S+)\s*$", re.M)
@@ -1319,6 +1320,32 @@ def check_related_tests(rep, cfg):
              'docs/en/config.md), or set "branchCheck": "full" to say so')
 
 
+def check_plan_ids(rep, root, cfg):
+    """B52: WARN when the plan files (`plan`) exist and have lines but none opens an entry whose id matches `taskId`:
+    `handoff.py next-id`, `clash` and the `Refs:` check then see no task. Quiet without a plan or with no plan file."""
+    plans = (cfg or {}).get("plan") or []
+    if not plans:
+        return
+    pattern = handoff.task_id_pattern(cfg)  # $GW_TASK_ID too, as next-id reads it (D179)
+    try:
+        entry = handoff.entry_regex(f"(?:{config.non_capturing(pattern)})", any_cell=True)
+    except (re.error, config.ConfigError):
+        return  # an invalid taskId is check_config's to report
+    texts = []
+    for p in plans:
+        path = root / p
+        for f in sorted(path.rglob("*.md")) if path.is_dir() else [path] if path.is_file() and path.suffix == ".md" else []:
+            texts.append(f.read_text(encoding="utf-8", errors="replace"))
+    if not any(t.strip() for t in texts):
+        return
+    if any(entry.match(line) for t in texts for line in t.splitlines()):
+        return
+    rep.warn("plan ids", f"no entry of the plan ({', '.join(plans)}) starts with an id that matches taskId "
+             f"`{pattern}`, so next-id and the Refs check see no task",
+             "set taskId in .claude/gw.json to the pattern the plan's ids follow (docs/en/config.md), or write the "
+             "ids at the start of a table cell or list item")
+
+
 GITHUB_REMOTE = re.compile(r"^(?:https?://(?:[^/@]+@)?|ssh://(?:[^/@]+@)?|[^/@:]+@)github\.com[:/]", re.I)
 
 
@@ -1484,13 +1511,15 @@ def check_workflow_clone(rep, root, cfg, workflow=None):
                      f"point {origin} at a clone: git clone --depth 1 {config.workflow_repository(cfg)} <DIR>, or unset it")
         return
     rel = config.workflow_clone(cfg)
-    if is_workflow(root / rel):
+    if config.find_workflow_clone(root, cfg):
         return
     why = "does not exist" if not (root / rel).is_dir() else "is not the workflow repo"
-    rep.warn("workflow clone", f"workflowClone points at {rel}, which {why}, so review-scope.py cannot tell "
-             "what is vendored and the review reads the whole diff",
-             f"git clone --depth 1 {config.workflow_repository(cfg)} {rel}, or set \"workflowClone\" in "
-             ".claude/gw.json to the folder of your clone")
+    tried = ", ".join(str(c) for c in config.workflow_clone_candidates(root, cfg))
+    rep.warn("workflow clone", f"workflowClone points at {rel}, which {why}, and no workflowCloneAlso folder "
+             f"holds the workflow (tried: {tried}), so review-scope.py cannot tell what is vendored and the review "
+             "reads the whole diff",
+             f"git clone --depth 1 {config.workflow_repository(cfg)} {rel}, or set \"workflowClone\" (or "
+             "\"workflowCloneAlso\") in .claude/gw.json to the folder of your clone")
 
 
 AGENT_FILES = (".claude/agents/gw-worker.md", ".claude/agents/gw-reviewer.md")
@@ -1532,6 +1561,7 @@ def run(root, workflow=None):
     check_media_folder(rep, root)
     check_media_tools(rep, root)
     check_related_tests(rep, cfg)
+    check_plan_ids(rep, root, cfg)
     check_workflow_clone(rep, root, cfg, workflow)
     check_agent_files_ignored(rep, root)
     proposals = check_proposals(rep, root)

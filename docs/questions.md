@@ -77,28 +77,36 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 
 ## Q-9
 - Refs:
-- Status: open
+- Status: answered
 - Asked: 2026-11-27
 - Question: gw-update 0.9.0→0.9.1, rama: a) la de la sesión (ccr-c6c4e060-0l41l0), que ya lleva gart-H1 sin fusionar; b) una rama nueva claude/gw-update desde main
 - Recommendation: a: actualizar en la rama de la sesión, en un commit propio; el PR lleva H1 y la 0.9.1 juntos y la revisión separa los commits
+- Answer: a
+- Answered: 2026-11-27
 
 ## Q-10
 - Refs:
-- Status: open
+- Status: answered
 - Asked: 2026-11-27
 - Question: ¿Aplico apply.py --update (escribe 110 archivos del flujo y migra .claude/gw.json; puede pedir permiso para tocar .claude/settings.json y .githooks/)?
 - Recommendation: ok: --update (110 archivos del flujo sin cambios locales y gw.json a 0.9.1)
+- Answer: ok
+- Answered: 2026-11-27
 
 ## Q-11
 - Refs:
-- Status: open
+- Status: answered
 - Asked: 2026-11-27
 - Question: Fusión a mano: a) traer las 2 reglas nuevas de REVIEW.md (tiempo límite que mata el grupo de procesos; un test no depende de que exista lo que comprueba) y subir solo los marcadores del resto (AGENTS, CLAUDE y GLOSSARY solo cambian el marcador); b) otra cosa
 - Recommendation: a: añadir las 2 reglas nuevas de REVIEW.md y subir el marcador de AGENTS, CLAUDE, GLOSSARY, REVIEW, la bitácora y gw-opt-tokens.md a v0.9.1 sin generar los .gw-new
+- Answer: a
+- Answered: 2026-11-27
 
 ## Q-12
 - Refs:
-- Status: open
+- Status: answered
 - Asked: 2026-11-27
 - Question: Para leer las 4 copias en gart-H2, el subagente necesita acceso a galivelop-developer, galivelop-image-generator, galivelop-voice-generator y galivelop-client-catcher (rechazaste add_repo desde la sesión principal): a) lo añado en solo lectura para que lo lea un subagente; b) los clonas tú o me dices otra vía
 - Recommendation: a: añadirlos en solo lectura; los lee un subagente Explore haiku que devuelve un resumen con rutas, la sesión principal no los abre
+- Answer: a
+- Answered: 2026-11-27
