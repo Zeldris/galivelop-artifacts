@@ -167,7 +167,8 @@ versión.
 **Dentro**
 - Palabras clave: `type`, `properties`, `required`, `additionalProperties`, `propertyNames`, `minProperties`,
   `items`, `minItems`, `maxItems`, `enum`, `const`, `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
-  `$ref`, `$defs`.
+  `$ref`, `$defs`; y, desde gart-H3 ([ADR 0015](../adr/0015-palabras-clave-de-los-esquemas-publicados.md)),
+  `maxProperties`, `dependentRequired`, `allOf`, `if`, `then` y `else`.
 - Anotaciones: la unión de las de las cuatro copias; entre ellas `title`, `description`, `examples`, `$comment`,
   `$schema`, `$id` y `default`.
 - JSON canónico, `ContentHash`, `file_hash`, `ArtifactRef`, `gart.common/0`.
