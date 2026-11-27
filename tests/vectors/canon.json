@@ -13,16 +13,10 @@
    "hash": "sha256:099601b171cafed97c333f8878d68e7f8c8f795412adb34b2fdcf0e7c7beac42"
   },
   {
-   "name": "rfc8785 3.2.2 sample",
-   "input": "{\"numbers\":[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001],\"string\":\"\\u20ac$\\u000F\\u000aA'\\u0042\\u0022\\u005c\\\\\\\"/\",\"literals\":[null,true,false]}",
-   "hex": "7b226c69746572616c73223a5b6e756c6c2c747275652c66616c73655d2c226e756d62657273223a5b3333333333333333332e333333333333332c31652b33302c342e352c302e3030322c31652d32375d2c22737472696e67223a22e282ac245c75303030665c6e4127425c225c5c5c5c5c222f227d",
-   "hash": "sha256:2d5e01a318d0f0879ab568c4be289c8b1f64ef8921a53c6277d5e069978baacb"
-  },
-  {
-   "name": "1e21",
-   "input": "1e21",
-   "hex": "31652b3231",
-   "hash": "sha256:241c4643fa70b1dcde1205b71be4e3bebb17e9f880c8e1a33d0ead6c27271d3c"
+   "name": "rfc8785 3.2.2 sample without 1E30",
+   "input": "{\"numbers\":[333333333.33333329,1E15,4.50,2e-3,0.000000000000000000000000001],\"string\":\"\\u20ac$\\u000F\\u000aA'\\u0042\\u0022\\u005c\\\\\\\"/\",\"literals\":[null,true,false]}",
+   "hex": "7b226c69746572616c73223a5b6e756c6c2c747275652c66616c73655d2c226e756d62657273223a5b3333333333333333332e333333333333332c313030303030303030303030303030302c342e352c302e3030322c31652d32375d2c22737472696e67223a22e282ac245c75303030665c6e4127425c225c5c5c5c5c222f227d",
+   "hash": "sha256:2dfc9c3f5653d404b14387ce01e0176060613d6f79ea02af89ffea9629405e96"
   },
   {
    "name": "1e-7",
@@ -73,18 +67,6 @@
    "hash": "sha256:4c933a456bb8f2e9894b2d0b26480439cd72d52fb8a27cbf8fd7f323f22c7815"
   },
   {
-   "name": "1E30",
-   "input": "1E30",
-   "hex": "31652b3330",
-   "hash": "sha256:7412d94bdf30adfa71080e057185e1a8de86e2e99a8350b011df8ac41ed5a6e3"
-  },
-  {
-   "name": "123456789012345680000",
-   "input": "1.2345678901234568e20",
-   "hex": "313233343536373839303132333435363830303030",
-   "hash": "sha256:725abf175290195635e55a971cf88e02a46d6d56e964ec2d8bc47614b9559062"
-  },
-  {
    "name": "float integral 1.0",
    "input": "1.0",
    "hex": "31",
@@ -101,12 +83,6 @@
    "input": "0.0",
    "hex": "30",
    "hash": "sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
-  },
-  {
-   "name": "1e21 minus",
-   "input": "9.999999999999999e20",
-   "hex": "393939393939393939393939393939393030303030",
-   "hash": "sha256:914b4f8b4bbe2f6e7c36ad7791fc842a7516d149e694b3a71b78cee465ff6d7a"
   },
   {
    "name": "control escapes",
@@ -238,6 +214,41 @@
    "name": "lone surrogate nested key",
    "input": "[{\"a\":{\"\\udfff\":1}}]",
    "code": "canon.type"
+  },
+  {
+   "name": "1e21",
+   "input": "1e21",
+   "code": "canon.int_range"
+  },
+  {
+   "name": "1E30",
+   "input": "1E30",
+   "code": "canon.int_range"
+  },
+  {
+   "name": "123456789012345680000",
+   "input": "1.2345678901234568e20",
+   "code": "canon.int_range"
+  },
+  {
+   "name": "1e21 minus",
+   "input": "9.999999999999999e20",
+   "code": "canon.int_range"
+  },
+  {
+   "name": "float 2^53",
+   "input": "9.007199254740992e15",
+   "code": "canon.int_range"
+  },
+  {
+   "name": "float 1e300",
+   "input": "1e300",
+   "code": "canon.int_range"
+  },
+  {
+   "name": "float -1e300",
+   "input": "-1e300",
+   "code": "canon.int_range"
   }
  ]
 }

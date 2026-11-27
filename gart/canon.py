@@ -1,6 +1,6 @@
 """Canonical JSON (RFC 8785, JCS) and content hashes, stdlib only.
 
-DDD invariants 9 and 14. Own input restrictions on top of JCS: integers outside +-(2^53-1), `NaN`, `Infinity`,
+DDD invariants 9 and 14. Own input restrictions on top of JCS: integers and floats outside +-(2^53-1), `NaN`, `Infinity`,
 `-0` and duplicate object keys are rejected. `loads_strict` reads with those rules; `canonical_bytes` enforces
 the same on a Python value.
 """
@@ -39,6 +39,8 @@ def _check_float(value: float, path: str = "") -> float:
         raise CanonError("canon.infinity", "infinity is not allowed (or the number overflows a double)", path)
     if value == 0 and math.copysign(1.0, value) < 0:
         raise CanonError("canon.negative_zero", "negative zero is not allowed", path)
+    if abs(value) > MAX_SAFE_INT:
+        raise CanonError("canon.int_range", f"number outside +-(2^53-1): {value!r}", path)
     return value
 
 

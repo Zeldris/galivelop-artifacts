@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
-| **Fase / tarea** | gart-H9 hecho y bloque revisado (3 hallazgos aplicados, 4 leves en `docs/records/pending.md`), salvo Q-15. Antes: bloque gart-H1/H2 revisado (10 hallazgos aplicados, 4 leves en `docs/records/pending.md`). Presupuesto de compactaciones: 0 |
+| **Fase / tarea** | gart-H9 cerrado y bloque revisado (3 hallazgos aplicados, 4 leves en `docs/records/pending.md`); Q-15 a aplicada (floats ≥ 2^53 rechazados). Antes: bloque gart-H1/H2 revisado (10 hallazgos aplicados, 4 leves en `docs/records/pending.md`). Presupuesto de compactaciones: 0 |
 | **Último punto estable** | el commit `feat(gart-H9)` |
-| **Siguiente paso** | Esperar Q-15; si a: rechazar \|x\| ≥ 2^53 en `_check_float` al leer y escribir, pasar a reject los vectores 1E30, 123456789012345680000, 1e21 y 1e21 minus, quitar NO_ROUND_TRIP y test_big_integral_float_does_not_round_trip; luego decidir con la persona `main` o gart-H10 |
+| **Siguiente paso** | Decidir con la persona `main` (tres fases) o gart-H10 |
 | **Check** | verde tras los arreglos de la revisión (unittest, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación

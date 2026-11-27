@@ -29,7 +29,7 @@ class VectorTests(unittest.TestCase):
             "canon.duplicate_key": "duplicate",
             "canon.nan": "NaN",
             "canon.infinity": "infinity",
-            "canon.int_range": "integer outside",
+            "canon.int_range": "outside",
             "canon.negative_zero": "negative zero",
             "canon.syntax": "invalid JSON",
             "canon.type": "surrogate",
@@ -80,20 +80,15 @@ class ValueTests(unittest.TestCase):
 
     def test_float_integral(self):
         self.assertEqual(canonical_bytes(1.0), b"1")
-        self.assertEqual(canonical_bytes([1e21, 1e-7, 0.5]), b"[1e+21,1e-7,0.5]")
+        self.assertEqual(canonical_bytes([1e15, 1e-7, 0.5]), b"[1000000000000000,1e-7,0.5]")
 
-    # Integral floats in [2^53, 1e21) print as bare digits (ES), which loads_strict reads as an out-of-range int.
-    NO_ROUND_TRIP = {"123456789012345680000", "1e21 minus"}
-
-    def test_big_integral_float_does_not_round_trip(self):
-        with self.assertRaises(CanonError) as cm:
-            loads_strict(canonical_bytes(1.2345678901234568e20).decode())
-        self.assertEqual(cm.exception.code, "canon.int_range")
+    def test_big_float_rejected_on_write(self):
+        err = self.check(1e20, "canon.int_range", "number outside")
+        self.assertIn("1e+20", err.args[0])
+        self.assertEqual(canonical_bytes(9007199254740991.0), b"9007199254740991")
 
     def test_round_trip(self):
         for case in VECTORS["cases"]:
-            if case["name"] in self.NO_ROUND_TRIP:
-                continue
             with self.subTest(case["name"]):
                 first = canonical_bytes(loads_strict(case["input"]))
                 again = canonical_bytes(loads_strict(first.decode("utf-8")))
