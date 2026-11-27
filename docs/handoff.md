@@ -11,7 +11,7 @@
 | **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
 | **Fase / tarea** | gart-H9 cerrado y bloque revisado (3 hallazgos aplicados, 4 leves en `docs/records/pending.md`); Q-15 a aplicada (floats ≥ 2^53 rechazados). Antes: bloque gart-H1/H2 revisado (10 hallazgos aplicados, 4 leves en `docs/records/pending.md`). Presupuesto de compactaciones: 0 |
 | **Último punto estable** | el commit `feat(gart-H9)` |
-| **Siguiente paso** | Hacia `main` (Q-16 a): fase 1 hecha (2 leves a pendientes); fase 2, `gw-opt-tokens` y retro presentadas a la persona |
+| **Siguiente paso** | Hacia `main` (Q-16 a): fases 1 y 2 hechas; la retro `docs/records/retro-2026-11-27-h1-h2-h9.md` espera la decisión de la persona (T1-T5, 1-3); luego `reviewed.sh` y push a `main` |
 | **Check** | verde tras los arreglos de la revisión (unittest, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación
