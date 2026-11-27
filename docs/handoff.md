@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-70ec6319-y2c8pd` (sesión en la nube; sale de `main` tras el PR #1) |
-| **Fase / tarea** | gart-H3 en curso: paso 1 (tests de las cuatro copias contra gart, adaptador en el scratchpad); luego tabla `gart.diff/0` y arreglos. Copias clonadas en solo lectura: `/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-{image,voice}-generator`. Presupuesto de compactaciones: 1 |
+| **Fase / tarea** | gart-H3 en curso: paso 1 hecho (medición en `docs/records/gart-H3-medicion.md`: gart nunca es más laxo que una copia). Esperando Q-18 (maxProperties, dependentRequired, allOf, if/then/else), Q-19 (contrato de errores frente a oi) y Q-20 (alcance de «los tests pasan»). Copias clonadas en solo lectura: `/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-{image,voice}-generator`. Presupuesto de compactaciones: 1 |
 | **Último punto estable** | el commit `gart-H12: barrido de gart/canon.py` |
-| **Siguiente paso** | gart-H3: unificar las cuatro copias (tabla `gart.diff/0` primero); Q-17 (License) se decide antes de gart-H10 |
+| **Siguiente paso** | con Q-18 a Q-20 contestadas: esquema y datos de `gart.diff/0` (una fila por causa de la medición), luego los arreglos de gart |
 | **Check** | verde (95 tests, doctor sin FAIL, ci-local); el CI de 52116ba salió rojo (`test_deep_text`: en el Python del CI `json.loads` no desborda) y se arregló con `MAX_DEPTH` |
 
 ## Para la próxima publicación

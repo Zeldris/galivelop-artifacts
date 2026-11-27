@@ -153,3 +153,24 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 - Asked: 2026-11-27
 - Question: License de gart-H10 (decidir antes de empezarlo): a) lista SPDX corta, sin expresiones, autor obligatorio; b) lista SPDX entera con expresiones; c) otra
 - Recommendation: a) MIT/Apache-2.0/BSD/ISC/CC-BY/CC0 como lista corta, sin expresiones OR/AND en /0, autor obligatorio; se amplía en un /1 si un consumidor lo pide
+
+## Q-18
+- Refs: gart-H3
+- Status: open
+- Asked: 2026-11-27
+- Question: Palabras clave que gart-H2 dejó fuera y que usan esquemas publicados (maxProperties y dependentRequired en 3 de gimg; allOf e if/then/else en 2 de gvoice): a) entran las cuatro en gart; b) solo las de gimg; c) ninguna, y gimg y gvoice reescriben sus esquemas
+- Recommendation: a: sin ellas gart no puede validar los esquemas que ya publican gimg y gvoice (gart-H8); las cuatro son pequeñas y gvoice ya las tiene con tests; se amplía el DDD §6 con un ADR
+
+## Q-19
+- Refs: gart-H3
+- Status: open
+- Asked: 2026-11-27
+- Question: Contrato de errores frente a oi (rutas $.a[0], param property, actual en type, tipos separados por |): a) gart se queda con JSON Pointer y name, añade actual a los params de type y oi se adapta en gart-H8; b) igual pero sin actual; c) gart copia el formato de oi
+- Recommendation: a: JSON Pointer es el contrato de gart y name ya lo usan las otras tres copias; actual añade información sin romper a nadie y oi la necesita para sus mensajes
+
+## Q-20
+- Refs: gart-H3
+- Status: open
+- Asked: 2026-11-27
+- Question: Qué significa «los tests de las cuatro copias pasan contra gart» en gart-H3: a) pasan los de comportamiento; los de API (load_schema → gart-H4, format_error y mensajes → gart-H6, check de oi → gart-H8) quedan como filas de gart.diff/0 con su hito; b) pasan todos ya en gart-H3
+- Recommendation: a: adelantar el Registry y el catálogo mezclaría tres hitos; cada test que no pase tendrá su fila en gart.diff/0 con el hito que lo cierra
