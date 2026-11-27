@@ -200,8 +200,9 @@ Cada hito, con su commit y su test, es una tarea minable por GVE.
 | gart-H9 | un archivo, más los vectores | Canon: `loads_strict`, JCS, `ContentHash`, `file_hash` y `meta` | vectores fijos y casos de rechazo (inv. 9 y 14) | lo piden gforge y grun |
 | gart-H10 | varios pasos | `ArtifactRef`, `gart.common/0` y `License` | tests de las inv. 10 y 13 | lo pide gworld |
 | gart-H11 | varios pasos | Kit de copia (`vendor`, `--check`, test plantilla, copias ajenas), `gart/namespaces.json` y su página | tests de las inv. 11 y 12 | lo piden los nueve repos |
+| gart-H12 | un archivo, más los vectores | Barrido de `gart/canon.py`: los 5 leves de gart-H9 en `docs/records/pending.md` | tests de cada leve | retro 2026-11-27 |
 
-**Orden:** gart-H1 → H2 → H9 → H3 → H4 → H10 → H5 → H6 → H11 → H7 → H8. El canon y las refs van antes que los
+**Orden:** gart-H1 → H2 → H9 → H12 → H3 → H4 → H10 → H5 → H6 → H11 → H7 → H8. El canon y las refs van antes que los
 consumidores porque gmod, grun, gforge y gworld nacen ya con ellos: ninguno de los repos nuevos escribe su propia
 función de hash.
 

@@ -304,8 +304,10 @@
     "rules": [],
     "command": ""
   },
-  "plan": [],
-  "taskId": "[A-Z]{2,5}-\\d+",
+  "plan": [
+    "docs/records/ddd-galivelop-artifacts.md"
+  ],
+  "taskId": "gart-[A-Z]+\\d+",
   "subagentCap": 30,
   "subagentCapStep": 10,
   "subagentCounterStaleDays": 7,
