@@ -1,5 +1,5 @@
 {
-  "$comment": "galivelop-workflow v0.9.0",
+  "$comment": "galivelop-workflow v0.9.1",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/zeldris/Galivelop-workflow/main/schema/gw.schema.json",
   "title": "Galivelop-workflow project config (.claude/gw.json)",
@@ -79,6 +79,12 @@
       "minLength": 1,
       "default": "../Galivelop-workflow",
       "description": "Where review-scope.py looks for a clone of the workflow repo (relative to the repo root) to tell which files are vendored (D132); it must be at the version of this file."
+    },
+    "workflowCloneAlso": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": ["../{owner}/{repo}", "/home/user/{owner}/{repo}", "/home/user/{repo}"],
+      "description": "More folders where the workflow clone is looked for after workflowClone (B48): relative ones to the repo root; {owner} and {repo} come from workflowRepository; letter case is ignored. The cloud puts a repo added to a session at /home/user/<owner>/<repo>."
     },
     "workflowRepository": {
       "type": "string",
@@ -213,15 +219,23 @@
       "default": 30,
       "description": "Seconds each git call of the Stop hook (before-stop.py) may take before it counts as failed (a warning, never a block)."
     },
+    "stopCiTimeout": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 600,
+      "default": 30,
+      "description": "Seconds the Stop hook (before-stop.py) waits for ci-status.py when it looks for a CI of the pushed HEAD that is still queued or running (stopSeverity.ciPending); past it, the read counts as failed (a warning, never a block)."
+    },
     "stopSeverity": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "unpushed": {"type": "string", "enum": ["block", "warn"], "default": "block"},
-        "logRequired": {"type": "string", "enum": ["block", "warn"], "default": "block"}
+        "logRequired": {"type": "string", "enum": ["block", "warn"], "default": "block"},
+        "ciPending": {"type": "string", "enum": ["block", "warn", "off"], "default": "block"}
       },
-      "default": {"unpushed": "block", "logRequired": "block"},
-      "description": "What the Stop hook (before-stop.py) does for its two hard cases: unpushed (commits not pushed on a working branch) and logRequired (uncommitted changes while the log is not among them). block stops the session until fixed; warn only says it in the closing message."
+      "default": {"unpushed": "block", "logRequired": "block", "ciPending": "block"},
+      "description": "What the Stop hook (before-stop.py) does for its hard cases: unpushed (commits not pushed on a working branch), logRequired (uncommitted changes while the log is not among them) and ciPending (HEAD is pushed and its CI is still queued or running: how to schedule the check). block stops the session until fixed (ciPending: once per commit); warn only says it in the closing message; off (ciPending only) does not look."
     },
     "recover": {
       "type": "object",
@@ -384,6 +398,7 @@
         "stopSubagentMaxAge",
         "stopPushMarkerMaxAge",
         "stopGitTimeout",
+        "stopCiTimeout",
         "stopSeverity",
         "recover",
         "hookStdinWait",
@@ -470,6 +485,18 @@
         ".claude/gw.local.json"
       ],
       "description": "Files (relative to the repo root, no '..') whose content is part of the check-cache key, for ignored files the check reads and the git tree does not see; a missing file counts as absent; [] = the key is the tree alone."
+    },
+    "checkCacheIgnore": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$)).+$"
+      },
+      "default": [
+        "docs/metrics/ledger.jsonl"
+      ],
+      "description": "Tracked paths (relative to the repo root, no '..') left out of the tree the check-cache key uses, for files hooks append on their own (the token ledger); [] = the whole tree is the key."
     },
     "checkLogKeep": {
       "type": "integer",
@@ -1397,10 +1424,11 @@
       "additionalProperties": false,
       "properties": {
         "compileRegex": {"type": "string", "minLength": 1, "default": "SyntaxError|IndentationError|ModuleNotFoundError|ImportError|ERROR collecting|error: could not compile|error\\[E[0-9]+\\]|error TS[0-9]+|Cannot find module|cannot find symbol|undefined reference|build failed|Failed to compile"},
-        "testRegex": {"type": "string", "minLength": 1, "default": "(def|fn|func|function)[[:space:]]+_?[Tt]est|(^|[^[:alnum:]_.])(it|test|describe)[[:space:]]*\\(|#\\[test\\]|@Test|unittest\\.TestCase|^[+@ -]*test_[A-Za-z0-9_]*[[:space:]]*\\(\\)"}
+        "testRegex": {"type": "string", "minLength": 1, "default": "^[+@ [:space:]-]*(async[[:space:]]+)?(def|fn|func|function)[[:space:]]+_?[Tt]est|^[+@ [:space:]-]*(it|test|describe)[[:space:]]*\\(|#\\[test\\]|@Test|unittest\\.TestCase|^[+@ [:space:]-]*test_[A-Za-z0-9_]*[[:space:]]*\\(\\)"},
+        "testPathRegex": {"type": "string", "minLength": 1, "default": "(^|/)(tests?|__tests__|specs?)/|(^|/)test_[^/]*$|_tests?\\.[A-Za-z0-9]+$|\\.(test|spec)\\.[A-Za-z0-9]+$|(^|/)[^/]*Tests?\\.(java|kt|cs|swift)$"}
       },
-      "default": {"compileRegex": "SyntaxError|IndentationError|ModuleNotFoundError|ImportError|ERROR collecting|error: could not compile|error\\[E[0-9]+\\]|error TS[0-9]+|Cannot find module|cannot find symbol|undefined reference|build failed|Failed to compile", "testRegex": "(def|fn|func|function)[[:space:]]+_?[Tt]est|(^|[^[:alnum:]_.])(it|test|describe)[[:space:]]*\\(|#\\[test\\]|@Test|unittest\\.TestCase|^[+@ -]*test_[A-Za-z0-9_]*[[:space:]]*\\(\\)"},
-      "description": "red-without-fix.sh, regexes for grep -E (POSIX classes allowed): compileRegex is what a load/compile red prints (--compile-re on the command line wins); testRegex finds test code in a fix file (a match refuses the file, exit 2). An invalid regex makes the script exit 2."
+      "default": {"compileRegex": "SyntaxError|IndentationError|ModuleNotFoundError|ImportError|ERROR collecting|error: could not compile|error\\[E[0-9]+\\]|error TS[0-9]+|Cannot find module|cannot find symbol|undefined reference|build failed|Failed to compile", "testRegex": "^[+@ [:space:]-]*(async[[:space:]]+)?(def|fn|func|function)[[:space:]]+_?[Tt]est|^[+@ [:space:]-]*(it|test|describe)[[:space:]]*\\(|#\\[test\\]|@Test|unittest\\.TestCase|^[+@ [:space:]-]*test_[A-Za-z0-9_]*[[:space:]]*\\(\\)", "testPathRegex": "(^|/)(tests?|__tests__|specs?)/|(^|/)test_[^/]*$|_tests?\\.[A-Za-z0-9]+$|\\.(test|spec)\\.[A-Za-z0-9]+$|(^|/)[^/]*Tests?\\.(java|kt|cs|swift)$"},
+      "description": "red-without-fix.sh, regexes for grep -E (POSIX classes allowed): compileRegex is what a load/compile red prints (--compile-re on the command line wins); testPathRegex matches the path of a test file (a fix file whose path matches is refused, exit 2, without reading it); testRegex finds anchored test markers in the other fix files (a match refuses the file, exit 2). An invalid regex makes the script exit 2."
     },
     "branchPrefixes": {
       "type": "object",

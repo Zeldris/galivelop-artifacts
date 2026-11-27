@@ -1,6 +1,6 @@
 {
   "$schema": "gw/schema/gw.schema.json",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "schemaVersion": 2,
   "languages": {
     "code": "en",
@@ -36,6 +36,7 @@
   "check": [
     "bash -n .githooks/pre-commit",
     "bash -n .githooks/pre-push",
+    "python3 -m unittest discover -s tests -t .",
     "python3 .claude/gw/scripts/doctor.py",
     "python3 .claude/gw/scripts/ci-local.py --validate"
   ],
@@ -286,7 +287,12 @@
   "scoutDir": ".claude/gw/scout",
   "scoutMaxAgeDays": 30,
   "relatedTests": {
-    "fast": [],
+    "fast": [
+      {
+        "command": "python3 -m unittest discover -s tests -t .",
+        "paths": "^(gart|tests)/.*\\.py$"
+      }
+    ],
     "slow": []
   },
   "changeSize": {
@@ -298,8 +304,10 @@
     "rules": [],
     "command": ""
   },
-  "plan": [],
-  "taskId": "[A-Z]{2,5}-\\d+",
+  "plan": [
+    "docs/records/ddd-galivelop-artifacts.md"
+  ],
+  "taskId": "gart-[A-Z]+\\d+",
   "subagentCap": 30,
   "subagentCapStep": 10,
   "subagentCounterStaleDays": 7,
