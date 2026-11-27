@@ -20,8 +20,9 @@ _(lo que va a `main` a continuación, y a qué espera)_
 
 ## Hecho (5 últimas)
 
-1. 2026-11-27 — Flujo a v0.9.1 (`/gw-update`): 110 archivos del flujo, `gw.json`, 2 reglas nuevas en `REVIEW.md`, marcadores.
-2. 2026-11-27 — gart-H1: `KindId` (análisis, validación, `/0` provisional, `next()`), inv. 1 con tabla de válidos e inválidos.
+1. 2026-11-27 — CI de GitHub arranca otra vez (verde en f45a1ce); quitado de pendientes.
+2. 2026-11-27 — Flujo a v0.9.1 (`/gw-update`): 110 archivos del flujo, `gw.json`, 2 reglas nuevas en `REVIEW.md`, marcadores.
+3. 2026-11-27 — gart-H1: `KindId` (análisis, validación, `/0` provisional, `next()`), inv. 1 con tabla de válidos e inválidos.
 
 ## Pendiente
 
