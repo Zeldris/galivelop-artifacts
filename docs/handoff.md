@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `claude/arranque` |
-| **Fase / tarea** | DDD final en `docs/records/ddd-galivelop-artifacts.md`, desde `../galivelop-developer/docs/records/` (`ddd-galivelop-artifacts-borrador2.md` y `revision-ddd-gart-borrador2.md`, solo lectura). Preguntas q7–q14 hechas (`docs/questions.md`), sin contestar. Presupuesto de compactaciones: 0 |
-| **Último punto estable** | las preguntas registradas; el DDD sigue siendo el borrador 1 |
-| **Siguiente paso** | con las respuestas, escribir el DDD: q1–q6 y ADR 0001–0006 se conservan; q7 en adelante, un ADR cada una; aplicar R1–R10 y Q-177 a Q-179 (respuesta «a»); hitos `gart-H<n>` |
+| **Fase / tarea** | DDD final escrito (`docs/records/ddd-galivelop-artifacts.md`, q1–q14 y ADR 0001–0014), pendiente de que la persona lo lea. Presupuesto de compactaciones: 0 |
+| **Último punto estable** | el commit del DDD final |
+| **Siguiente paso** | tras la lectura de la persona, empezar gart-H1 (`KindId`); a `main` solo con su confirmación y las tres fases |
 | **Check** | `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`: verde (árbol `cbc403d`) |
 
 ## Para la próxima publicación
@@ -25,7 +25,7 @@ _(lo que va a `main` a continuación, y a qué espera)_
 
 ## Pendiente
 
-Lo pendiente está en el archivo de `pendingFile` (`.claude/gw.json`; por defecto `docs/records/pending.md`): decisiones de la persona que bloquean algo, problemas conocidos, ideas sin planificar. Se añade y se quita allí; `handoff.py move-pending` rehace esta línea y `handoff.py add-pending "texto"` añade sin leer el archivo.
+Lo pendiente está en [`docs/records/pending.md`](records/pending.md); se añade y se quita allí.
 
 ## Comprobar el estado
 
