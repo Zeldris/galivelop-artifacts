@@ -137,3 +137,17 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 - Recommendation: a: la inv. 9 rechaza los enteros fuera de ±(2^53−1) y todo double de 2^53 o más es entero; con b el canon escribe bytes (1e20 → 100000000000000000000) que su propio loads_strict rechaza, y la regla se salta escribiendo el entero con exponente (9.007199254740992e15). Se pierden los números de magnitud ≥ 2^53, que ningún artefacto actual usa
 - Answer: a
 - Answered: 2026-11-27
+
+## Q-16
+- Refs: gart-H3
+- Status: open
+- Asked: 2026-11-27
+- Question: Siguiente paso tras gart-H9: a) llevar la rama a main (tres fases: revisión, gw-opt-tokens + retro, marca) o b) seguir con gart-H3 según el orden del plan (o c) gart-H10, como decía la bitácora)
+- Recommendation: b) seguir con gart-H3: el plan fija H9 → H3 → H4 → H10 y llevar a main ahora (14 commits, CI verde) obliga a la revisión final y la retro; mejor tras H3/H4 o cuando un consumidor lo pida
+
+## Q-17
+- Refs: gart-H3
+- Status: open
+- Asked: 2026-11-27
+- Question: License de gart-H10 (decidir antes de empezarlo): a) lista SPDX corta, sin expresiones, autor obligatorio; b) lista SPDX entera con expresiones; c) otra
+- Recommendation: a) MIT/Apache-2.0/BSD/ISC/CC-BY/CC0 como lista corta, sin expresiones OR/AND en /0, autor obligatorio; se amplía en un /1 si un consumidor lo pide
