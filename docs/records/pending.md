@@ -10,3 +10,7 @@ Lo que queda abierto; la bitácora solo apunta aquí. Se añade y se quita en es
 - gart-H2: `_ecma_pattern` solo traduce `$` (`[]x]`, `\s`, `.` difieren de ECMA-262)
 - gart-H2: un NaN en la instancia pasa `minimum` si el esquema no tiene `type` (lo cierra `loads_strict` en gart-H9 o una comprobación en `validate`)
 - gart-H2: un `required` repetido por `$ref` y su hermano da errores duplicados
+- gart-H9: `_emit` (gart/canon.py) aplica str()/repr() a subclases: en 3.10 str(IntEnum.A) da 'Cls.A' y canonical_bytes sale inválido; arreglo str(int(v)) y _number(float(v))
+- gart-H9: una anidación profunda o cíclica sale como canon.type o canon.syntax («invalid JSON») aunque el JSON sea válido; propuesta canon.depth (mismo tema que el pendiente de profundidad de gart-H2)
+- gart-H9: los errores de los hooks de `loads_strict` dejan `path` vacío (p. ej. clave duplicada anidada), aunque CanonError documenta path como JSON Pointer; dar ubicación o documentar que loads_strict no la da
+- gart-H9: Q-15 abierta: floats de magnitud ≥ 2^53

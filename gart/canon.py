@@ -43,6 +43,8 @@ def _check_float(value: float, path: str = "") -> float:
 
 
 def _parse_int(text: str) -> int:
+    if len(text.lstrip("-")) > 16:
+        raise CanonError("canon.int_range", f"integer outside +-(2^53-1): {text[:20]}...")
     value = int(text)
     if value == 0 and text.startswith("-"):
         raise CanonError("canon.negative_zero", "negative zero is not allowed: -0")
@@ -72,13 +74,15 @@ def loads_strict(text: str) -> Any:
     if not isinstance(text, str):
         raise CanonError("canon.type", f"text is not a string: {type(text).__name__}")
     try:
-        return json.loads(
+        value = json.loads(
             text,
             object_pairs_hook=_pairs,
             parse_constant=_parse_constant,
             parse_int=_parse_int,
             parse_float=_parse_float,
         )
+        _check_strings(value)
+        return value
     except json.JSONDecodeError as exc:
         raise CanonError("canon.syntax", f"invalid JSON: {exc.msg} (line {exc.lineno}, column {exc.colno})") from None
     except RecursionError:
@@ -113,11 +117,29 @@ def _number(value: float) -> str:
     return sign + out
 
 
-def _string(text: str, path: str) -> str:
+def _check_utf8(text: str, path: str) -> None:
     try:
         text.encode("utf-8")
     except UnicodeEncodeError:
         raise CanonError("canon.type", "string has a lone surrogate (not valid UTF-8)", path) from None
+
+
+def _check_strings(value: Any) -> None:
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            _check_utf8(item, "")
+        elif isinstance(item, list):
+            stack.extend(item)
+        elif isinstance(item, dict):
+            for key, child in item.items():
+                _check_utf8(key, "")
+                stack.append(child)
+
+
+def _string(text: str, path: str) -> str:
+    _check_utf8(text, path)
     out = []
     for ch in text:
         if ch in _ESCAPES:

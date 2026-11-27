@@ -128,3 +128,10 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 - Recommendation: a: el DDD §6 fija la lista; lo que usan las copias y no está en ella (allOf, if/then/else, maxProperties, dependentRequired) se apunta para gart-H3, donde la tabla gart.diff/0 dirá qué consumidor lo necesita; los $ref a archivo hermano esperan al Registry (gart-H4)
 - Answer: a
 - Answered: 2026-11-27
+
+## Q-15
+- Refs: gart-H9
+- Status: open
+- Asked: 2026-11-27
+- Question: Floats de magnitud ≥ 2^53 (p. ej. 1e20, 1e300, 9.007199254740992e15) en el canon: a) se rechazan con canon.int_range al leer y al escribir; b) se aceptan como ahora, sin ida y vuelta (canonical_bytes los escribe como dígitos que loads_strict rechaza)
+- Recommendation: a: la inv. 9 rechaza los enteros fuera de ±(2^53−1) y todo double de 2^53 o más es entero; con b el canon escribe bytes (1e20 → 100000000000000000000) que su propio loads_strict rechaza, y la regla se salta escribiendo el entero con exponente (9.007199254740992e15). Se pierden los números de magnitud ≥ 2^53, que ningún artefacto actual usa

@@ -28,10 +28,11 @@ class VectorTests(unittest.TestCase):
         reasons = {
             "canon.duplicate_key": "duplicate",
             "canon.nan": "NaN",
-            "canon.infinity": "",
+            "canon.infinity": "infinity",
             "canon.int_range": "integer outside",
             "canon.negative_zero": "negative zero",
             "canon.syntax": "invalid JSON",
+            "canon.type": "surrogate",
         }
         for case in VECTORS["reject"]:
             with self.subTest(case["name"]):
