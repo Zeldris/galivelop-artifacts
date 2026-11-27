@@ -20,3 +20,14 @@ Falta gdev (Q-13).
 dos. Por decidir contra el alcance del DDD §6: `allOf`/`if/then/else`, `maxProperties`, `dependentRequired` (fuera de
 la lista) y los `$ref` a archivo hermano (son del `Registry`, gart-H4). De oi, merece la pena: `enum` no vacío y orden
 estable de errores.
+
+## gdev (añadido tras Q-13)
+
+`gdev/schema.py` (263 l.) es la copia de gimg sin `maxProperties` ni `dependentRequired`: sus palabras clave son
+exactamente las del DDD §6. Añade `load_def` y `load_grammar` (gemelo GBNF), que son de gdev y no entran en gart.
+Hereda el fallo de gimg con los `$ref` cíclicos.
+
+**Decisión (Q-14 a):** base gvoice recortada a las palabras clave del §6 (el conjunto de gdev), con `enum` no vacío
+y orden estable de errores de oi. Fuera, apuntado para gart-H3: `allOf`, `if/then/else`, `maxProperties`,
+`dependentRequired`; los `$ref` a archivo hermano y `load_schema` esperan al `Registry` (gart-H4); los mensajes es/en,
+al catálogo (gart-H6).
