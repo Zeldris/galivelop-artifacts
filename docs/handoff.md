@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
-| **Fase / tarea** | gart-H1 (`KindId`) hecho: `gart/kind_id.py` y `tests/test_kind_id.py`. Presupuesto de compactaciones: 0 |
+| **Fase / tarea** | gw-update 0.9.0→0.9.1 en preparación (simulacro hecho, nada aplicado); gart-H2 en espera. Presupuesto de compactaciones: 0 |
 | **Último punto estable** | el commit de gart-H1 |
-| **Siguiente paso** | gart-H2: validador del subconjunto (§6) y anotaciones, migrado de la copia más completa de las cuatro (leerlas con un subagente); a `main` solo con confirmación y las tres fases |
+| **Siguiente paso** | Esperar las respuestas de la persona a Q-9..Q-12 (`docs/questions.md`): rama, `apply.py --update`, fusión a mano de `REVIEW.md` y marcadores, y acceso de un subagente a las 4 copias. Luego gw-update y, tras él, gart-H2 con `merge-main.py` y `gw-orchestrate-dealer` |
 | **Check** | `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`: verde (gart-H1) |
 
 ## Para la próxima publicación
