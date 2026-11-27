@@ -3,6 +3,13 @@
 DDD invariants 9 and 14. Own input restrictions on top of JCS: integers and floats outside +-(2^53-1), `NaN`, `Infinity`,
 `-0` and duplicate object keys are rejected. `loads_strict` reads with those rules; `canonical_bytes` enforces
 the same on a Python value.
+
+Nesting deeper than `MAX_DEPTH` containers is rejected with `canon.depth`, by `loads_strict` (before the parser can
+hit the interpreter recursion limit) and by `canonical_bytes`. A cyclic structure has no finite depth, so
+`canonical_bytes` reports it as `canon.depth` too (there is no separate cycle code).
+
+`loads_strict` reports the JSON Pointer of the offending value in `CanonError.path` (for a duplicate key, the pointer
+of the second occurrence); only syntax and depth errors have no path.
 """
 
 from __future__ import annotations
@@ -14,11 +21,12 @@ import os
 from typing import Any
 
 MAX_SAFE_INT = 2**53 - 1
+MAX_DEPTH = 512  # most nested arrays/objects accepted; the top-level container is depth 1
 _ESCAPES = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\t": "\\t", "\n": "\\n", "\f": "\\f", "\r": "\\r"}
 
 
 class CanonError(ValueError):
-    """A value or text the canon rejects. `code` is the stable catalog key; `path` is a JSON Pointer or ""."""
+    """A value or text the canon rejects. `code` is the stable catalog key; `path` is a JSON Pointer or "" (syntax and depth errors of `loads_strict` have none)."""
 
     def __init__(self, code: str, reason: str, path: str = "") -> None:
         super().__init__(f"{reason} at {path!r}" if path else reason)
@@ -44,37 +52,100 @@ def _check_float(value: float, path: str = "") -> float:
     return value
 
 
-def _parse_int(text: str) -> int:
+class _Bad:
+    """Placeholder a parse hook leaves where it found a rejected value; `_walk` turns it into an error with a path."""
+
+    def __init__(self, code: str, reason: str, suffix: str = "") -> None:
+        self.code = code
+        self.reason = reason
+        self.suffix = suffix
+
+
+def _parse_int(text: str) -> Any:
     if len(text.lstrip("-")) > 16:
-        raise CanonError("canon.int_range", f"integer outside +-(2^53-1): {text[:20]}...")
+        return _Bad("canon.int_range", f"integer outside +-(2^53-1): {text[:20]}...")
     value = int(text)
     if value == 0 and text.startswith("-"):
-        raise CanonError("canon.negative_zero", "negative zero is not allowed: -0")
-    return _check_int(value)
+        return _Bad("canon.negative_zero", "negative zero is not allowed: -0")
+    try:
+        return _check_int(value)
+    except CanonError as exc:
+        return _Bad(exc.code, exc.args[0])
 
 
-def _parse_float(text: str) -> float:
-    return _check_float(float(text))
+def _parse_float(text: str) -> Any:
+    try:
+        return _check_float(float(text))
+    except CanonError as exc:
+        return _Bad(exc.code, exc.args[0])
 
 
 def _parse_constant(name: str) -> Any:
     code = "canon.nan" if name == "NaN" else "canon.infinity"
-    raise CanonError(code, f"{name} is not allowed")
+    return _Bad(code, f"{name} is not allowed")
 
 
-def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+def _pointer(key: str) -> str:
+    return "/" + key.replace("~", "~0").replace("/", "~1")
+
+
+def _pairs(pairs: list[tuple[str, Any]]) -> Any:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            raise CanonError("canon.duplicate_key", f"duplicate object key {key!r}")
+            return _Bad("canon.duplicate_key", f"duplicate object key {key!r}", _pointer(key))
         result[key] = value
     return result
 
 
+def _depth_of(text: str) -> int:
+    """Deepest container nesting of JSON `text` (strings skipped); malformed text is left to the parser."""
+    depth = deepest = 0
+    in_string = escaped = False
+    for ch in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+        elif ch == '"':
+            in_string = True
+        elif ch in "[{":
+            depth += 1
+            deepest = max(deepest, depth)
+        elif ch in "]}":
+            depth -= 1
+    return deepest
+
+
+def _walk(value: Any) -> None:
+    """Raise the first rejected value in document order, with its JSON Pointer."""
+    stack: list[tuple[Any, str]] = [(value, "")]
+    while stack:
+        item, path = stack.pop()
+        if isinstance(item, _Bad):
+            raise CanonError(item.code, item.reason, path + item.suffix)
+        if isinstance(item, str):
+            _check_utf8(item, path)
+        elif isinstance(item, list):
+            stack.extend((child, f"{path}/{i}") for i, child in reversed(list(enumerate(item))))
+        elif isinstance(item, dict):
+            for key in item:
+                _check_utf8(key, path + _pointer(key))
+            stack.extend((child, path + _pointer(key)) for key, child in reversed(list(item.items())))
+
+
 def loads_strict(text: str) -> Any:
-    """Parse JSON `text`, rejecting duplicate keys, NaN/Infinity, -0 and out-of-range numbers."""
+    """Parse JSON `text`, rejecting duplicate keys, NaN/Infinity, -0, out-of-range numbers and lone surrogates.
+
+    Value errors carry the JSON Pointer of the value in `path`; syntax and depth (> `MAX_DEPTH`) errors have none.
+    """
     if not isinstance(text, str):
         raise CanonError("canon.type", f"text is not a string: {type(text).__name__}")
+    if _depth_of(text) > MAX_DEPTH:
+        raise CanonError("canon.depth", f"JSON nested deeper than {MAX_DEPTH} levels")
     try:
         value = json.loads(
             text,
@@ -83,12 +154,12 @@ def loads_strict(text: str) -> Any:
             parse_int=_parse_int,
             parse_float=_parse_float,
         )
-        _check_strings(value)
+        _walk(value)
         return value
     except json.JSONDecodeError as exc:
         raise CanonError("canon.syntax", f"invalid JSON: {exc.msg} (line {exc.lineno}, column {exc.colno})") from None
     except RecursionError:
-        raise CanonError("canon.syntax", "JSON nested too deeply") from None
+        raise CanonError("canon.depth", "JSON nested too deeply") from None
 
 
 def _number(value: float) -> str:
@@ -126,20 +197,6 @@ def _check_utf8(text: str, path: str) -> None:
         raise CanonError("canon.type", "string has a lone surrogate (not valid UTF-8)", path) from None
 
 
-def _check_strings(value: Any) -> None:
-    stack = [value]
-    while stack:
-        item = stack.pop()
-        if isinstance(item, str):
-            _check_utf8(item, "")
-        elif isinstance(item, list):
-            stack.extend(item)
-        elif isinstance(item, dict):
-            for key, child in item.items():
-                _check_utf8(key, "")
-                stack.append(child)
-
-
 def _string(text: str, path: str) -> str:
     _check_utf8(text, path)
     out = []
@@ -153,7 +210,7 @@ def _string(text: str, path: str) -> str:
     return '"' + "".join(out) + '"'
 
 
-def _emit(value: Any, path: str) -> str:
+def _emit(value: Any, path: str, depth: int = 0) -> str:
     if value is None:
         return "null"
     if value is True:
@@ -161,13 +218,18 @@ def _emit(value: Any, path: str) -> str:
     if value is False:
         return "false"
     if isinstance(value, int):
-        return str(_check_int(value, path))
+        return str(int(_check_int(value, path)))  # int(): a subclass may override str()
     if isinstance(value, float):
-        return _number(_check_float(value, path))
+        return _number(_check_float(float(value), path))  # float(): a subclass may override repr()
     if isinstance(value, str):
         return _string(value, path)
+    if isinstance(value, (list, tuple, dict)) and depth >= MAX_DEPTH:
+        raise CanonError("canon.depth", f"value nested deeper than {MAX_DEPTH} levels (or cyclic)", path)
     if isinstance(value, (list, tuple)):
-        return "[" + ",".join(_emit(item, f"{path}/{i}") for i, item in enumerate(value)) + "]"
+        items = []
+        for i, item in enumerate(value):
+            items.append(_emit(item, f"{path}/{i}", depth + 1))
+        return "[" + ",".join(items) + "]"
     if isinstance(value, dict):
         for key in value:
             if not isinstance(key, str):
@@ -175,7 +237,7 @@ def _emit(value: Any, path: str) -> str:
         parts = []
         for key in sorted(value, key=lambda k: k.encode("utf-16-be", "surrogatepass")):
             escaped = key.replace("~", "~0").replace("/", "~1")
-            parts.append(_string(key, path) + ":" + _emit(value[key], f"{path}/{escaped}"))
+            parts.append(_string(key, path) + ":" + _emit(value[key], f"{path}/{escaped}", depth + 1))
         return "{" + ",".join(parts) + "}"
     raise CanonError("canon.type", f"not a JSON type: {type(value).__name__}", path)
 
@@ -185,7 +247,7 @@ def canonical_bytes(obj: Any) -> bytes:
     try:
         return _emit(obj, "").encode("utf-8")
     except RecursionError:
-        raise CanonError("canon.type", "value nested too deeply (or cyclic)") from None
+        raise CanonError("canon.depth", "value nested too deeply (or cyclic)") from None
 
 
 def content_hash(obj: Any) -> str:

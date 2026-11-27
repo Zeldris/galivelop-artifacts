@@ -8,23 +8,23 @@
 
 | Campo | Valor |
 |---|---|
-| **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
-| **Fase / tarea** | gart-H9 cerrado y bloque revisado (3 hallazgos aplicados, 4 leves en `docs/records/pending.md`); Q-15 a aplicada (floats ≥ 2^53 rechazados). Antes: bloque gart-H1/H2 revisado (10 hallazgos aplicados, 4 leves en `docs/records/pending.md`). Presupuesto de compactaciones: 0 |
-| **Último punto estable** | el commit `feat(gart-H9)` |
-| **Siguiente paso** | PR #1 (https://github.com/Zeldris/galivelop-artifacts/pull/1) abierto con la marca de 39bb1bb: fusionar con el CI en verde; luego gart-H12 (barrido de `gart/canon.py`) y gart-H3 |
+| **Rama** | `ccr-5bf1928c-gjj56w` (sesión en la nube; sale de `main` tras fusionar PR #1) |
+| **Fase / tarea** | gart-H12 hecho (barrido de canon.py). Presupuesto de compactaciones: 0 |
+| **Último punto estable** | el commit `feat(gart-H12)` |
+| **Siguiente paso** | revisión del bloque gart-H12; luego gart-H3 |
 | **Check** | verde tras los arreglos de la revisión (unittest, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación
 
-gart-H1, H2 y H9 con sus revisiones y la retro 2026-11-27, por pull request (Q-16 a, confirmado por la persona el 2026-11-27).
+gart-H12 (barrido de canon.py), por pull request.
 
 ## Hecho (5 últimas)
 
-1. 2026-11-27 — Fase 1 hacia `main` (diff desde 3326968): sin graves ni medios, 2 leves a pendientes; docs de la inv. 9 y ADR 0007 al día (floats ≥ 2^53).
-2. 2026-11-27 — Revisión del bloque gart-H9: entero enorme y sustitutos sueltos rechazados por `loads_strict` como CanonError, motivos de test no vacíos; 4 leves apuntados.
-3. 2026-11-27 — gart-H9: `gart/canon.py` (`CanonError`, `loads_strict`, `canonical_bytes` JCS, `content_hash`, `file_hash`), vectores en `tests/vectors/canon.json` y 16 tests.
-4. 2026-11-27 — Revisión del bloque gart-H1/H2: 10 arreglos (KindId ida y vuelta y versión enorme, `$ref` a no-esquema, raíz `""`, orden por (ruta, código), propertyNames con causa, números enormes); 4 leves apuntados.
-5. 2026-11-27 — gart-H2: `gart/schema.py` (`SchemaError`, `ValidationError`, `check_schema`, `validate`), portado de gvoice; 56 tests.
+1. 2026-11-27 — gart-H12: barrido de `gart/canon.py` (subclases de int/float, `canon.depth` con `MAX_DEPTH` 512 y ciclos, `path` JSON Pointer en `loads_strict`, motivos de los vectores, muestra RFC 8785 §3.2.2 con bytes a mano); 5 leves de gart-H9 cerrados.
+2. 2026-11-27 — Fase 1 hacia `main` (diff desde 3326968): sin graves ni medios, 2 leves a pendientes; docs de la inv. 9 y ADR 0007 al día (floats ≥ 2^53).
+3. 2026-11-27 — Revisión del bloque gart-H9: entero enorme y sustitutos sueltos rechazados por `loads_strict` como CanonError, motivos de test no vacíos; 4 leves apuntados.
+4. 2026-11-27 — gart-H9: `gart/canon.py` (`CanonError`, `loads_strict`, `canonical_bytes` JCS, `content_hash`, `file_hash`), vectores en `tests/vectors/canon.json` y 16 tests.
+5. 2026-11-27 — Revisión del bloque gart-H1/H2: 10 arreglos (KindId ida y vuelta y versión enorme, `$ref` a no-esquema, raíz `""`, orden por (ruta, código), propertyNames con causa, números enormes); 4 leves apuntados.
 
 ## Pendiente
 
