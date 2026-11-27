@@ -8,11 +8,11 @@
 
 | Campo | Valor |
 |---|---|
-| **Rama** | `claude/arranque` |
-| **Fase / tarea** | DDD final escrito (`docs/records/ddd-galivelop-artifacts.md`, q1–q14 y ADR 0001–0014), pendiente de que la persona lo lea. Presupuesto de compactaciones: 0 |
-| **Último punto estable** | el commit del DDD final |
-| **Siguiente paso** | tras la lectura de la persona, empezar gart-H1 (`KindId`); a `main` solo con su confirmación y las tres fases |
-| **Check** | `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`: verde (árbol `cbc403d`) |
+| **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
+| **Fase / tarea** | gart-H1 (`KindId`) hecho: `gart/kind_id.py` y `tests/test_kind_id.py`. Presupuesto de compactaciones: 0 |
+| **Último punto estable** | el commit de gart-H1 |
+| **Siguiente paso** | gart-H2: validador del subconjunto (§6) y anotaciones, migrado de la copia más completa de las cuatro (leerlas con un subagente); a `main` solo con confirmación y las tres fases |
+| **Check** | `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`: verde (gart-H1) |
 
 ## Para la próxima publicación
 
@@ -20,8 +20,7 @@ _(lo que va a `main` a continuación, y a qué espera)_
 
 ## Hecho (5 últimas)
 
-1. _(fecha — qué se cerró, en dos líneas como mucho: el detalle está en el commit; la más antigua sale cuando hay más
-   de 5, el historial está en git)_
+1. 2026-11-27 — gart-H1: `KindId` (análisis, validación, `/0` provisional, `next()`), inv. 1 con tabla de válidos e inválidos.
 
 ## Pendiente
 

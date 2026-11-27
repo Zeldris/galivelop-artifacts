@@ -36,6 +36,7 @@
   "check": [
     "bash -n .githooks/pre-commit",
     "bash -n .githooks/pre-push",
+    "python3 -m unittest discover -s tests -t .",
     "python3 .claude/gw/scripts/doctor.py",
     "python3 .claude/gw/scripts/ci-local.py --validate"
   ],
@@ -286,7 +287,12 @@
   "scoutDir": ".claude/gw/scout",
   "scoutMaxAgeDays": 30,
   "relatedTests": {
-    "fast": [],
+    "fast": [
+      {
+        "command": "python3 -m unittest discover -s tests -t .",
+        "paths": "^(gart|tests)/.*\\.py$"
+      }
+    ],
     "slow": []
   },
   "changeSize": {
