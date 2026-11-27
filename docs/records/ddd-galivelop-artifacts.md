@@ -138,8 +138,8 @@ dueño del validador, del formato `KindId`, del canon y de las reglas de versió
    anotaciones no validan: se admite la unión de las de las cuatro copias.
    - Test: cada fila de la tabla tiene su caso; los esquemas actuales de cada copia pasan `check_schema`.
 9. **JSON canónico único: RFC 8785 (JCS)**, claves en orden de unidades UTF-16 y números con el formato de
-   ECMAScript, escrito solo con la biblioteca estándar. Restricciones de entrada propias: se rechazan los enteros
-   fuera de ±(2^53−1), `NaN`, `±Inf`, `-0` y las claves duplicadas (estas, al leer con `loads_strict`).
+   ECMAScript, escrito solo con la biblioteca estándar. Restricciones de entrada propias: se rechazan los números
+   (enteros o no) fuera de ±(2^53−1), `NaN`, `±Inf`, `-0` y las claves duplicadas (estas, al leer con `loads_strict`).
    - Test: vectores fijos en un JSON, con los bytes esperados en hex y el hash; `.gitattributes` los marca `-text`.
      Cada restricción tiene su caso de rechazo con su motivo. El CI los corre en Linux; macOS, Windows y la Deck se
      comprueban en la máquina y quedan pendientes en el plan hasta entonces.
@@ -234,7 +234,7 @@ Ninguna bloquea gart-H1. Quedan dos leves de la revisión, para antes del hito q
 | q4 | ¿Dónde deben residir físicamente los esquemas: en repositorios individuales o en un registro central? | Cada repo conserva sus propios esquemas y `gart` solo los carga; no hay registro central. | 3. Contextos acotados, 6. Alcance |
 | q5 | ¿Cuál es la política de resolución cuando las cuatro copias de validadores difieren en sus reglas? | Cuando las cuatro copias difieran, gana la versión más estricta, y la diferencia se apunta en la tabla de diferencias. | 5. Invariantes (cada una con su test) |
 | q6 | ¿Cuál es la licencia y visibilidad del repo de `gart`? | Repo público, con la misma licencia que los demás repos Galivelop. | preamble |
-| q7 | ¿Qué reglas sigue el JSON canónico? | RFC 8785 (JCS) tal cual, con orden UTF-16 y números ECMAScript escritos con la biblioteca estándar. Se rechazan en la entrada los enteros fuera de ±(2^53−1), `NaN`, `±Inf`, `-0` y las claves duplicadas (`loads_strict`). | 5. Invariantes |
+| q7 | ¿Qué reglas sigue el JSON canónico? | RFC 8785 (JCS) tal cual, con orden UTF-16 y números ECMAScript escritos con la biblioteca estándar. Se rechazan en la entrada los números (enteros o no) fuera de ±(2^53−1), `NaN`, `±Inf`, `-0` y las claves duplicadas (`loads_strict`). | 5. Invariantes |
 | q8 | ¿Qué formato tiene el hash? | `sha256:<hex>`, también en `file_hash` para los archivos que no son JSON. | 2. Lenguaje del dominio |
 | q9 | ¿Qué entra en el hash de un artefacto? | El artefacto sin el campo de sobre `meta`, definido en `gart.common/0`. | 2. Lenguaje del dominio, 5. Invariantes |
 | q10 | ¿Dónde vive `gart.common/0`? | Dentro del paquete gart, y se copia con él. | 4. Modelo |

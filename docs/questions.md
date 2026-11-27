@@ -139,7 +139,7 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 - Answered: 2026-11-27
 
 ## Q-16
-- Refs: gart-H3
+- Refs: gart-H9
 - Status: answered
 - Asked: 2026-11-27
 - Question: Siguiente paso tras gart-H9: a) llevar la rama a main (tres fases: revisión, gw-opt-tokens + retro, marca) o b) seguir con gart-H3 según el orden del plan (o c) gart-H10, como decía la bitácora)
