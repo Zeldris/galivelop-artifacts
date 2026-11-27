@@ -13,20 +13,21 @@ def errs(instance, schema):
 class TypeTests(unittest.TestCase):
     def test_each_type_accepts_and_rejects(self):
         cases = {
-            "object": ({}, [1]), "array": ([], {}), "string": ("a", 1), "integer": (3, "3"),
-            "number": (1.5, "1.5"), "boolean": (True, 0), "null": (None, 0),
+            "object": ({}, [1], "array"), "array": ([], {}, "object"), "string": ("a", 1, "integer"),
+            "integer": (3, "3", "string"), "number": (1.5, "1.5", "string"), "boolean": (True, 0, "integer"),
+            "null": (None, 0, "integer"),
         }
-        for name, (good, bad) in cases.items():
+        for name, (good, bad, actual) in cases.items():
             with self.subTest(type=name):
                 self.assertEqual(validate(good, {"type": name}), [])
                 self.assertEqual(validate(bad, {"type": name}),
-                                 [ValidationError("", "type", {"expected": name})])
+                                 [ValidationError("", "type", {"expected": name, "actual": actual})])
 
     def test_type_list(self):
         sch = {"type": ["string", "null"]}
         self.assertEqual(validate(None, sch), [])
         self.assertEqual(validate("a", sch), [])
-        self.assertEqual(validate(1, sch), [ValidationError("", "type", {"expected": "string/null"})])
+        self.assertEqual(validate(1, sch), [ValidationError("", "type", {"expected": "string/null", "actual": "integer"})])
 
     def test_bool_is_not_integer_or_number(self):
         for name in ("integer", "number"):
@@ -46,6 +47,14 @@ class TypeTests(unittest.TestCase):
                 with self.subTest(value=value, type=name):
                     self.assertEqual(errs(value, {"type": name}), [("", "type")])
 
+    def test_actual_names_the_json_type_of_the_instance(self):
+        cases = [(True, "boolean"), (None, "null"), (3, "integer"), (1.0, "integer"), (1.5, "number"),
+                 ("s", "string"), ([], "array"), ({}, "object"), (float("inf"), "number")]
+        for value, actual in cases:
+            with self.subTest(value=value):
+                got = validate(value, {"type": "object" if actual != "object" else "array"})
+                self.assertEqual(got[0].params["actual"], actual)
+
     def test_unknown_type_is_a_schema_error(self):
         with self.assertRaisesRegex(SchemaError, "unknown type 'text'"):
             check_schema({"type": "text"})
@@ -58,7 +67,7 @@ class ObjectKeywordTests(unittest.TestCase):
         sch = {"properties": {"a": {"properties": {"b": {"type": "integer"}}}}}
         self.assertEqual(validate({"a": {"b": 1}}, sch), [])
         self.assertEqual(validate({"a": {"b": "x"}}, sch),
-                         [ValidationError("/a/b", "type", {"expected": "integer"})])
+                         [ValidationError("/a/b", "type", {"expected": "integer", "actual": "string"})])
 
     def test_required(self):
         sch = {"required": ["a", "b"]}
@@ -74,7 +83,7 @@ class ObjectKeywordTests(unittest.TestCase):
     def test_additional_properties_schema(self):
         sch = {"properties": {"a": {}}, "additionalProperties": {"type": "integer"}}
         self.assertEqual(validate({"a": "free", "z": 2}, sch), [])
-        self.assertEqual(validate({"z": "x"}, sch), [ValidationError("/z", "type", {"expected": "integer"})])
+        self.assertEqual(validate({"z": "x"}, sch), [ValidationError("/z", "type", {"expected": "integer", "actual": "string"})])
 
     def test_additional_properties_true(self):
         self.assertEqual(validate({"z": 1}, {"additionalProperties": True}), [])
@@ -102,7 +111,7 @@ class ArrayKeywordTests(unittest.TestCase):
     def test_items(self):
         sch = {"items": {"type": "integer"}}
         self.assertEqual(validate([1, 2], sch), [])
-        self.assertEqual(validate([1, "x"], sch), [ValidationError("/1", "type", {"expected": "integer"})])
+        self.assertEqual(validate([1, "x"], sch), [ValidationError("/1", "type", {"expected": "integer", "actual": "string"})])
 
     def test_items_path_is_nested(self):
         sch = {"items": {"properties": {"id": {"type": "integer"}}}}
@@ -181,7 +190,7 @@ class RefTests(unittest.TestCase):
     def test_ref_into_defs(self):
         sch = {"$defs": {"n": {"type": "integer"}}, "properties": {"a": {"$ref": "#/$defs/n"}}}
         self.assertEqual(validate({"a": 1}, sch), [])
-        self.assertEqual(validate({"a": "x"}, sch), [ValidationError("/a", "type", {"expected": "integer"})])
+        self.assertEqual(validate({"a": "x"}, sch), [ValidationError("/a", "type", {"expected": "integer", "actual": "string"})])
 
     def test_defs_alone_validate_nothing(self):
         self.assertEqual(validate(1, {"$defs": {"n": {"type": "string"}}}), [])
@@ -220,6 +229,134 @@ class RefTests(unittest.TestCase):
             check_schema({"$ref": 3})
 
 
+class MaxPropertiesTests(unittest.TestCase):
+    def test_max_properties(self):
+        sch = {"maxProperties": 1}
+        self.assertEqual(validate({"a": 1}, sch), [])
+        self.assertEqual(validate({"a": 1, "b": 2}, sch), [ValidationError("", "maxProperties", {"limit": 1})])
+        self.assertEqual(validate("xx", sch), [])  # only objects are counted
+
+    def test_max_properties_nested_path(self):
+        self.assertEqual(errs({"o": {"a": 1, "b": 2}}, {"properties": {"o": {"maxProperties": 1}}}),
+                         [("/o", "maxProperties")])
+
+    def test_malformed_max_properties(self):
+        for bad in (-1, 1.5, True, "1", None):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(SchemaError, "#/maxProperties: must be a non-negative integer"):
+                    check_schema({"maxProperties": bad})
+
+
+class DependentRequiredTests(unittest.TestCase):
+    SCH = {"type": "object", "dependentRequired": {"b": ["a", "c"]}}
+
+    def test_dependent_required(self):
+        for ok in ({}, {"a": 1}, {"a": 1, "b": 2, "c": 3}):
+            self.assertEqual(validate(ok, self.SCH), [])
+        self.assertEqual(validate({"b": 2, "c": 3}, self.SCH),
+                         [ValidationError("", "dependentRequired", {"name": "a", "trigger": "b"})])
+        self.assertEqual([e.params["name"] for e in validate({"b": 2}, self.SCH)], ["a", "c"])
+
+    def test_dependent_required_nested_path_and_non_object(self):
+        sch = {"properties": {"o": {"dependentRequired": {"x": ["y"]}}}}
+        self.assertEqual(errs({"o": {"x": 1}}, sch), [("/o", "dependentRequired")])
+        self.assertEqual(validate("x", {"dependentRequired": {"x": ["y"]}}), [])
+
+    def test_malformed_dependent_required(self):
+        cases = [
+            ([], "#/dependentRequired: must be an object"),
+            ({"x": "y"}, "#/dependentRequired/x: must be a list of strings"),
+            ({"x": [1]}, "#/dependentRequired/x: must be a list of strings"),
+            ({"x": ["y", "y"]}, "#/dependentRequired/x: items must be unique"),
+        ]
+        for bad, why in cases:
+            with self.subTest(bad=bad):
+                with self.assertRaises(SchemaError) as cm:
+                    check_schema({"dependentRequired": bad})
+                self.assertIn(why, str(cm.exception))
+
+
+class ConditionalTests(unittest.TestCase):
+    SCH = {"allOf": [
+        {"if": {"required": ["t"], "properties": {"t": {"const": "a"}}}, "then": {"required": ["x"]}},
+        {"if": {"required": ["t"], "properties": {"t": {"const": "b"}}},
+         "then": {"properties": {"x": False}}, "else": {"required": ["y"]}},
+    ]}
+
+    def test_if_then_else(self):
+        check_schema(self.SCH)
+        self.assertEqual(errs({"t": "a", "x": 1, "y": 1}, self.SCH), [])
+        self.assertEqual(errs({"t": "a", "y": 1}, self.SCH), [("", "required")])
+        self.assertEqual(errs({"t": "b", "x": 1}, self.SCH), [("/x", "false")])
+        self.assertEqual(errs({"t": "b"}, self.SCH), [])
+
+    def test_else_branch_runs_when_the_condition_fails(self):
+        self.assertEqual(errs({"t": "a", "x": 1}, self.SCH), [("", "required")])
+
+    def test_if_alone_never_errors(self):
+        self.assertEqual(validate(1, {"if": {"type": "string"}}), [])
+        self.assertEqual(validate("a", {"if": {"type": "string"}}), [])
+
+    def test_failing_if_does_not_leak_its_errors(self):
+        self.assertEqual(validate(1, {"if": {"type": "string"}, "then": False}), [])
+        self.assertEqual(errs(1, {"if": {"type": "string"}, "else": False}), [("", "false")])
+
+    def test_then_and_else_without_if_are_ignored(self):
+        sch = {"then": False, "else": False}
+        check_schema(sch)
+        self.assertEqual(validate(1, sch), [])
+
+    def test_malformed_if_then_else(self):
+        for key in ("if", "then", "else"):
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(SchemaError, f"#/{key}: schema must be an object"):
+                    check_schema({key: 1})
+        with self.assertRaisesRegex(SchemaError, "#/then: unsupported keyword .bogus."):
+            check_schema({"if": True, "then": {"bogus": 1}})
+
+
+class AllOfTests(unittest.TestCase):
+    def test_all_of_collects_every_failure(self):
+        sch = {"allOf": [{"required": ["a"]}, {"required": ["b"]}]}
+        self.assertEqual([e.params["name"] for e in validate({}, sch)], ["a", "b"])
+
+    def test_all_of_passes_when_all_pass_and_keeps_path(self):
+        sch = {"properties": {"n": {"allOf": [{"minimum": 1}, {"maximum": 3}]}}}
+        self.assertEqual(validate({"n": 2}, sch), [])
+        self.assertEqual(errs({"n": 5}, sch), [("/n", "maximum")])
+
+    def test_malformed_all_of(self):
+        cases = [
+            ({"allOf": {}}, "#/allOf: must be a non-empty list"),
+            ({"allOf": []}, "#/allOf: must be a non-empty list"),
+            ({"allOf": [1]}, "#/allOf/0: schema must be an object"),
+            ({"allOf": [{}, {"type": "text"}]}, "#/allOf/1: unknown type 'text'"),
+        ]
+        for sch, why in cases:
+            with self.subTest(sch=sch):
+                with self.assertRaises(SchemaError) as cm:
+                    check_schema(sch)
+                self.assertIn(why, str(cm.exception))
+
+    def test_cyclic_ref_is_a_schema_error_not_recursion(self):
+        sch = {"$defs": {"a": {"allOf": [{"$ref": "#/$defs/a"}]}}, "$ref": "#/$defs/a"}
+        with self.assertRaisesRegex(SchemaError, "cyclic reference"):
+            validate(1, sch)
+        for key in ("if", "then", "else"):
+            with self.subTest(key=key):
+                sch = {"$defs": {"a": {"if": True, "then": {"$ref": "#/$defs/a"}, "else": {"$ref": "#/$defs/a"}}},
+                       "$ref": "#/$defs/a"}
+                with self.assertRaisesRegex(SchemaError, "cyclic reference"):
+                    validate(1, sch)
+        direct = {"$defs": {"a": {"$ref": "#/$defs/a"}}, "allOf": [{"$ref": "#/$defs/a"}]}
+        with self.assertRaisesRegex(SchemaError, "cyclic reference"):
+            check_schema(direct)
+
+    def test_recursion_through_all_of_over_finite_data_is_fine(self):
+        sch = {"$defs": {"n": {"properties": {"k": {"allOf": [{"$ref": "#/$defs/n"}]}}}}, "$ref": "#/$defs/n"}
+        self.assertEqual(validate({"k": {"k": {}}}, sch), [])
+
+
 class RefTargetTests(unittest.TestCase):
     def test_ref_target_must_be_a_schema(self):
         sch = {"$ref": "#/properties/x/minLength", "properties": {"x": {"minLength": 3}}}
@@ -252,7 +389,7 @@ class SchemaCheckTests(unittest.TestCase):
                 self.assertEqual(errs("x", sch), [("", "type")])
 
     def test_unknown_keyword_is_rejected_naming_it(self):
-        for key in ("allOf", "if", "format", "maxProperties", "dependentRequired", "oneOf"):
+        for key in ("format", "oneOf", "anyOf", "not", "dependencies"):
             with self.subTest(key=key):
                 with self.assertRaisesRegex(SchemaError, f"unsupported keyword '{key}'"):
                     check_schema({key: {}})
@@ -298,7 +435,7 @@ class SchemaCheckTests(unittest.TestCase):
             check_schema([])
 
     def test_keyword_sets(self):
-        self.assertEqual(len(VALIDATING), 18)
+        self.assertEqual(len(VALIDATING), 24)
         self.assertFalse(VALIDATING & ANNOTATIONS)
 
 
@@ -355,6 +492,9 @@ class OrderAndShapeTests(unittest.TestCase):
         self.assertTrue({e.code for e in got} <= set(CODES))
         self.assertTrue({"required", "minProperties", "propertyNames", "false", "minItems", "type",
                          "additionalProperties", "pattern", "minLength"} <= {e.code for e in got})
+        more = validate({"a": 1, "b": 2}, {"maxProperties": 1, "dependentRequired": {"a": ["z"]}})
+        self.assertEqual({e.code for e in more}, {"maxProperties", "dependentRequired"})
+        self.assertTrue({e.code for e in more} <= set(CODES))
 
 
 if __name__ == "__main__":

@@ -1,10 +1,13 @@
 """Strict validator for the JSON Schema subset of gart (stdlib only).
 
 Ported from gvoice (`gvoice/schema.py` at galivelop-voice-generator@1990d92), itself a copy of gimg. Dropped:
-- `allOf`, `if`/`then`/`else`, `maxProperties`, `dependentRequired`: outside the DDD section 6 keyword set (gart-H3).
 - `$ref` to sibling files, `load_schema`, the schemas folder and its cache: they belong to the `Registry` (gart-H4).
 - i18n and `format_error`: messages come with the catalog (gart-H6); `code` and `params` are the stable contract.
 Added from opportunity_intel: `enum` must be a non-empty list, and errors come in a stable order (by path, then code).
+Added from gimg (gart-H3): `maxProperties` and `dependentRequired` (code `dependentRequired`, params `name` and `trigger`).
+Added from gvoice (gart-H3): `allOf` and `if`/`then`/`else`. `if` never yields an error itself, only the failures of the
+branch that applies; `then`/`else` without `if` are checked as schemas and ignored (as in gvoice). The `type` error
+carries `expected` and `actual` (the JSON type name of the instance).
 
 Paths are JSON Pointers (RFC 6901): the root is `""`, and a root key `""` is `/`.
 Errors come sorted by `(path, code)`.
@@ -22,7 +25,7 @@ ANNOTATIONS = frozenset(["$schema", "$id", "title", "description", "default", "e
 VALIDATING = frozenset(
     [
         "type", "properties", "required", "additionalProperties", "propertyNames",
-        "minProperties", "items", "minItems", "maxItems", "enum", "const", "pattern",
+        "minProperties", "maxProperties", "dependentRequired", "allOf", "if", "then", "else", "items", "minItems", "maxItems", "enum", "const", "pattern",
         "minLength", "maxLength", "minimum", "maximum", "$ref", "$defs",
     ]
 )
@@ -30,7 +33,7 @@ VALIDATING = frozenset(
 CODES = (
     "required", "type", "enum", "const", "pattern", "minimum", "maximum",
     "minLength", "maxLength", "minItems", "maxItems", "minProperties",
-    "additionalProperties", "propertyNames", "false",
+    "maxProperties", "dependentRequired", "additionalProperties", "propertyNames", "false",
 )
 TYPES = ("object", "array", "string", "integer", "number", "boolean", "null")
 
@@ -100,8 +103,21 @@ def _check(schema: Any, root: Any, where: str, seen: set) -> None:
                 raise SchemaError(f"{here}: must be an object")
             for name, sub in value.items():
                 _check(sub, root, f"{here}/{name}", seen)
-        elif key in ("items", "propertyNames"):
+        elif key in ("items", "propertyNames", "if", "then", "else"):
             _check(value, root, here, seen)
+        elif key == "allOf":
+            if not isinstance(value, list) or not value:
+                raise SchemaError(f"{here}: must be a non-empty list")
+            for i, sub in enumerate(value):
+                _check(sub, root, f"{here}/{i}", seen)
+        elif key == "dependentRequired":
+            if not isinstance(value, dict):
+                raise SchemaError(f"{here}: must be an object")
+            for name, needed in value.items():
+                if not isinstance(needed, list) or not all(isinstance(n, str) for n in needed):
+                    raise SchemaError(f"{here}/{name}: must be a list of strings")
+                if len(set(needed)) != len(needed):
+                    raise SchemaError(f"{here}/{name}: items must be unique")
         elif key == "additionalProperties":
             _check(value, root, here, seen)
         elif key == "enum":
@@ -124,7 +140,7 @@ def _check(schema: Any, root: Any, where: str, seen: set) -> None:
                 _compile(value)
             except (re.error, TypeError) as exc:
                 raise SchemaError(f"{where}: invalid pattern {value!r}: {exc}") from exc
-        elif key in ("minLength", "maxLength", "minItems", "maxItems", "minProperties"):
+        elif key in ("minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties"):
             if not _is_int(value) or value < 0:
                 raise SchemaError(f"{here}: must be a non-negative integer")
         elif key in ("minimum", "maximum"):
@@ -159,6 +175,23 @@ def _check_ref(root: Any, ref: Any, where: str, seen_nodes: set) -> None:
 def check_schema(schema: Any) -> None:
     """Raise `SchemaError` (naming the path and the cause) unless `schema` is in the supported subset."""
     _check(schema, schema, "#", set())
+
+
+def _json_type(value: Any) -> str:
+    """The JSON type name of an instance (whole numbers, 1.0 included, are `integer`)."""
+    if isinstance(value, bool):
+        return "boolean"
+    if value is None:
+        return "null"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "integer" if value.is_integer() else "number"  # inf and nan are not whole: "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    return "object"
 
 
 def _is_type(value: Any, name: str) -> bool:
@@ -236,10 +269,18 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
         if ref in seen:
             raise SchemaError(f"cyclic reference {ref!r}")
         _validate(value, _resolve(root, ref), root, path, out, seen | {ref})
+    for sub in schema.get("allOf", []):
+        _validate(value, sub, root, path, out, seen)
+    if "if" in schema:
+        probe: list = []
+        _validate(value, schema["if"], root, path, probe, seen)
+        branch = schema.get("else" if probe else "then")
+        if branch is not None:
+            _validate(value, branch, root, path, out, seen)
     if "type" in schema:
         names = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
         if not any(_is_type(value, n) for n in names):
-            add("type", expected="/".join(names))
+            add("type", expected="/".join(names), actual=_json_type(value))
             return
     if "enum" in schema and not any(_same(value, v) for v in schema["enum"]):
         add("enum", allowed=", ".join(json.dumps(v) for v in schema["enum"]))
@@ -276,6 +317,13 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
                 add("required", name=name)
         if "minProperties" in schema and len(value) < schema["minProperties"]:
             add("minProperties", limit=schema["minProperties"])
+        if "maxProperties" in schema and len(value) > schema["maxProperties"]:
+            add("maxProperties", limit=schema["maxProperties"])
+        for name, needed in schema.get("dependentRequired", {}).items():
+            if name in value:
+                for other in needed:
+                    if other not in value:
+                        add("dependentRequired", name=other, trigger=name)
         # Sorted by name, so the error list does not depend on insertion order.
         keys = sorted(value)
         if "propertyNames" in schema:
