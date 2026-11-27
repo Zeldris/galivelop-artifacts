@@ -140,10 +140,12 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 
 ## Q-16
 - Refs: gart-H3
-- Status: open
+- Status: answered
 - Asked: 2026-11-27
 - Question: Siguiente paso tras gart-H9: a) llevar la rama a main (tres fases: revisión, gw-opt-tokens + retro, marca) o b) seguir con gart-H3 según el orden del plan (o c) gart-H10, como decía la bitácora)
 - Recommendation: b) seguir con gart-H3: el plan fija H9 → H3 → H4 → H10 y llevar a main ahora (14 commits, CI verde) obliga a la revisión final y la retro; mejor tras H3/H4 o cuando un consumidor lo pida
+- Answer: a
+- Answered: 2026-11-27
 
 ## Q-17
 - Refs: gart-H3
