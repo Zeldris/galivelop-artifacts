@@ -1,5 +1,6 @@
 """Canon (gart-H9): fixed vectors, rejections, invariants 9 and 14, determinism."""
 
+import enum
 import hashlib
 import json
 import os
@@ -39,7 +40,25 @@ class VectorTests(unittest.TestCase):
                 with self.assertRaises(CanonError) as cm:
                     loads_strict(case["input"])
                 self.assertEqual(cm.exception.code, case["code"])
-                self.assertIn(reasons[case["code"]].lower(), str(cm.exception).lower())
+                self.assertIn(case.get("reason", reasons[case["code"]]).lower(), str(cm.exception).lower())
+
+    def test_int_range_vectors_have_reason(self):
+        for case in VECTORS["reject"]:
+            if case["code"] == "canon.int_range":
+                with self.subTest(case["name"]):
+                    self.assertIn(case.get("reason"), ("integer outside", "number outside"))
+
+    def test_nested_duplicate_key_path_is_empty(self):
+        with self.assertRaises(CanonError) as cm:
+            loads_strict('{"a": [{"b": 1, "b": 2}]}')
+        self.assertEqual(cm.exception.code, "canon.duplicate_key")
+        self.assertEqual(cm.exception.path, "")
+
+    def test_deep_text(self):
+        with self.assertRaises(CanonError) as cm:
+            loads_strict("[" * 100000 + "]" * 100000)
+        self.assertEqual(cm.exception.code, "canon.depth")
+        self.assertIn("nested too deeply", str(cm.exception))
 
     def test_infinity_reason(self):
         for text in ("[Infinity]", "-Infinity", "1e400"):
@@ -64,6 +83,26 @@ class ValueTests(unittest.TestCase):
         self.check(2**53, "canon.int_range", "integer outside")
         self.check(-(2**53), "canon.int_range", "integer outside")
         self.assertEqual(canonical_bytes(2**53 - 1), b"9007199254740991")
+
+    def test_subclasses(self):
+        class Num(enum.IntEnum):
+            A = 7
+
+        class Flt(float):
+            pass
+
+        self.assertEqual(canonical_bytes(Num.A), b"7")
+        self.assertEqual(canonical_bytes([Num.A, Flt(0.5), Flt(2.0)]), b"[7,0.5,2]")
+
+    def test_depth(self):
+        deep = []
+        for _ in range(100000):
+            deep = [deep]
+        cyclic = []
+        cyclic.append(cyclic)
+        for value in (deep, cyclic):
+            err = self.check(value, "canon.depth", "nested too deeply (or cyclic)")
+            self.assertEqual(err.path, "")
 
     def test_bool_is_bool(self):
         self.assertEqual(canonical_bytes([True, False, 1, 0]), b"[true,false,1,0]")

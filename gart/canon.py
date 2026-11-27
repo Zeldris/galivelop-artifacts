@@ -3,6 +3,9 @@
 DDD invariants 9 and 14. Own input restrictions on top of JCS: integers and floats outside +-(2^53-1), `NaN`, `Infinity`,
 `-0` and duplicate object keys are rejected. `loads_strict` reads with those rules; `canonical_bytes` enforces
 the same on a Python value.
+
+Error locations: `canonical_bytes` errors carry a JSON Pointer in `path`; `loads_strict` errors carry `path == ""`
+because the json hooks do not know where in the text they are called.
 """
 
 from __future__ import annotations
@@ -18,7 +21,11 @@ _ESCAPES = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\t": "\\t", "\n": "\\n", "\f
 
 
 class CanonError(ValueError):
-    """A value or text the canon rejects. `code` is the stable catalog key; `path` is a JSON Pointer or ""."""
+    """A value or text the canon rejects. `code` is the stable catalog key; `path` is a JSON Pointer or "".
+
+    Errors from `canonical_bytes` carry a JSON Pointer; errors from `loads_strict` carry `path == ""` (the location
+    is not known while parsing).
+    """
 
     def __init__(self, code: str, reason: str, path: str = "") -> None:
         super().__init__(f"{reason} at {path!r}" if path else reason)
@@ -72,7 +79,10 @@ def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def loads_strict(text: str) -> Any:
-    """Parse JSON `text`, rejecting duplicate keys, NaN/Infinity, -0 and out-of-range numbers."""
+    """Parse JSON `text`, rejecting duplicate keys, NaN/Infinity, -0 and out-of-range numbers.
+
+    Errors carry `path == ""`: the json hooks do not know the location while parsing.
+    """
     if not isinstance(text, str):
         raise CanonError("canon.type", f"text is not a string: {type(text).__name__}")
     try:
@@ -88,7 +98,7 @@ def loads_strict(text: str) -> Any:
     except json.JSONDecodeError as exc:
         raise CanonError("canon.syntax", f"invalid JSON: {exc.msg} (line {exc.lineno}, column {exc.colno})") from None
     except RecursionError:
-        raise CanonError("canon.syntax", "JSON nested too deeply") from None
+        raise CanonError("canon.depth", "JSON nested too deeply") from None
 
 
 def _number(value: float) -> str:
@@ -161,9 +171,9 @@ def _emit(value: Any, path: str) -> str:
     if value is False:
         return "false"
     if isinstance(value, int):
-        return str(_check_int(value, path))
+        return str(int(_check_int(value, path)))
     if isinstance(value, float):
-        return _number(_check_float(value, path))
+        return _number(float(_check_float(value, path)))
     if isinstance(value, str):
         return _string(value, path)
     if isinstance(value, (list, tuple)):
@@ -185,7 +195,7 @@ def canonical_bytes(obj: Any) -> bytes:
     try:
         return _emit(obj, "").encode("utf-8")
     except RecursionError:
-        raise CanonError("canon.type", "value nested too deeply (or cyclic)") from None
+        raise CanonError("canon.depth", "value nested too deeply (or cyclic)") from None
 
 
 def content_hash(obj: Any) -> str:
