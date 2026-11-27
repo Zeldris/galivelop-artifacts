@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gart.diff/0",
+  "title": "gart.diff/0",
+  "description": "Tabla de diferencias entre las copias del validador y gart (gart-H3, inv. 8). Una fila por diferencia de comportamiento o de API; gana la regla más estricta.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "copies", "rows"],
+  "properties": {
+    "schema": {"const": "gart.diff/0"},
+    "copies": {
+      "description": "Las copias medidas, con el commit en que se midieron.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "repo", "commit", "module"],
+        "properties": {
+          "name": {"$ref": "#/$defs/copy"},
+          "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+          "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+          "module": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "topic", "copies", "gart", "resolution"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^D[0-9]{2}$"},
+          "topic": {"type": "string", "minLength": 1},
+          "copies": {
+            "description": "Qué hace cada copia; solo las que difieren de gart.",
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {"$ref": "#/$defs/copy"},
+            "additionalProperties": {"type": "string", "minLength": 1}
+          },
+          "gart": {"type": "string", "minLength": 1},
+          "resolution": {
+            "description": "stricter: gart toma la regla más estricta; adopted: gart adopta lo de una copia (ADR); deferred: llega en un hito posterior; consumer: lo adapta el consumidor al pasar a gart; internal: el test de la copia usa algo que no es API.",
+            "enum": ["stricter", "adopted", "deferred", "consumer", "internal"]
+          },
+          "milestone": {"type": "string", "pattern": "^gart-H[0-9]+$"},
+          "tests": {
+            "description": "Tests de gart que fijan el comportamiento (módulo.Clase.test).",
+            "type": "array",
+            "items": {"type": "string", "pattern": "^tests\\.[A-Za-z0-9_.]+$"}
+          },
+          "copyTests": {
+            "description": "Tests de las copias que fallan contra gart por esta fila (copia:Clase.test).",
+            "type": "array",
+            "items": {"type": "string", "pattern": "^(gdev|gimg|gvoice|oi):[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$"}
+          }
+        },
+        "if": {"properties": {"resolution": {"enum": ["deferred", "consumer"]}}},
+        "then": {"required": ["milestone"]}
+      }
+    }
+  },
+  "$defs": {
+    "copy": {"enum": ["gdev", "gimg", "gvoice", "oi"]}
+  }
+}

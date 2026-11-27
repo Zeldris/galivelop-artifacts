@@ -22,12 +22,22 @@ mal formados (`enum` vacío, `type` desconocido, `minLength` negativo…) y pala
 |---|---|---|
 | `load_schema`, `_SCHEMAS`, `$ref` a archivo hermano | los cuatro | gart-H4 (`Registry`) |
 | `format_error`, mensajes es/en | los cuatro | gart-H6 (catálogo) |
-| `maxProperties`, `dependentRequired` | gimg: `project-config`, `brand-sheet`, `order` | por decidir (Q-18) |
-| `allOf`, `if`/`then`/`else` | gvoice: `order`, `effect-chain` | por decidir (Q-18) |
-| rutas `$.a[0]`, params `property` y `actual`, separador de tipos `\|` | oi | por decidir (Q-19) |
+| `maxProperties`, `dependentRequired` | gimg: `project-config`, `brand-sheet`, `order` | gart-H3, adoptadas (Q-18, ADR 0015) |
+| `allOf`, `if`/`then`/`else` | gvoice: `order`, `effect-chain` | gart-H3, adoptadas (Q-18, ADR 0015) |
+| rutas `$.a[0]`, params `property` y `actual`, separador de tipos `\|` | oi | gart-H8: gart se queda con JSON Pointer y `name`, añade `actual` (Q-19) |
 | `check` y `ValidationError` como excepción | oi | gart-H8 (lo adapta oi) |
 | `_error` privado | gdev, gimg, gvoice | no es API: el test de la copia se adapta |
 | `propertyNames`: gart da `reason`/`detail` en vez de `pattern` | gdev, gimg, gvoice | gart (más informativo; ningún test lo comprueba) |
 | textos de `SchemaError` | oi, gvoice | gart (el contrato es el tipo de error, no el texto) |
 
 Adaptador y batería de casos límite: `docs/records/gart-H3/` (`bash docs/records/gart-H3/run.sh [--own|--diag|--diff]`, con los clones en las rutas de `run.sh`).
+
+## Tras gart-H3
+
+Con las palabras clave de ADR 0015 y `actual` en `type` (8c81320) fallan 68 tests de las copias: gdev 5, gimg 27,
+gvoice 11 y oi 25. En oi los subtests con error suben de 51 a 63 porque su test de textos recorre las 6 palabras
+clave nuevas en es y en (gart-H6). Cada test que falla tiene su fila en `gart.diff/0` (`docs/records/gart-diff.json`,
+esquema `gart/schemas/diff.schema.json`). Ningún test de comportamiento de gdev, gimg o gvoice falla: lo que queda es
+API (gart-H4, gart-H6), `_error` o el formato de oi (gart-H8). Para comprobarlo:
+`bash docs/records/gart-H3/run.sh | python3 docs/records/gart-H3/coverage.py` (sale en 1 con un fallo sin fila o una
+fila que ya pasa).

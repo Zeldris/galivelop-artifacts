@@ -1,0 +1,292 @@
+{
+  "schema": "gart.diff/0",
+  "copies": [
+    {
+      "name": "gdev",
+      "repo": "Zeldris/galivelop-developer",
+      "commit": "014f7ff",
+      "module": "gdev/schema.py"
+    },
+    {
+      "name": "gimg",
+      "repo": "Zeldris/galivelop-image-generator",
+      "commit": "a3c314a",
+      "module": "gimg/schema.py"
+    },
+    {
+      "name": "gvoice",
+      "repo": "Zeldris/galivelop-voice-generator",
+      "commit": "1990d92",
+      "module": "gvoice/schema.py"
+    },
+    {
+      "name": "oi",
+      "repo": "Zeldris/galivelop-client-catcher",
+      "commit": "0edac88",
+      "module": "opportunity_intel/schema.py"
+    }
+  ],
+  "rows": [
+    {
+      "id": "D01",
+      "topic": "load_schema, carpeta de esquemas y $ref a archivo hermano",
+      "copies": {
+        "gdev": "load_schema y _SCHEMAS (gdev/schemas)",
+        "gimg": "load_schema con caché",
+        "gvoice": "load_schema; $ref a archivo hermano, con o sin puntero; rechaza salir de la carpeta",
+        "oi": "load_schema por id"
+      },
+      "gart": "solo $ref locales (#/...); el resto llega con el Registry",
+      "resolution": "deferred",
+      "milestone": "gart-H4",
+      "tests": [
+        "tests.test_schema.RefTests.test_ref_must_be_local"
+      ],
+      "copyTests": [
+        "gdev:LoadSchemaTests.test_load_reads_named_file_and_checks_it",
+        "gdev:LoadSchemaTests.test_schemas_folder_is_gdev_schemas",
+        "gimg:BrandConfigTests.test_brand_takes_nothing_else",
+        "gimg:BrandConfigTests.test_palette_is_optional_and_valid",
+        "gimg:BrandConfigTests.test_palette_rejects_bad_colours_and_more_than_16",
+        "gimg:ComposeConfigTests.test_a_full_composition_is_valid",
+        "gimg:ComposeConfigTests.test_at_most_ten_fields_and_ten_fonts",
+        "gimg:ComposeConfigTests.test_compose_needs_a_template",
+        "gimg:ComposeConfigTests.test_compose_rejects_unknown_keys_and_lut",
+        "gimg:ComposeConfigTests.test_field_names",
+        "gimg:ComposeConfigTests.test_fit_is_cover_or_contain",
+        "gimg:ComposeConfigTests.test_fonts_are_short_strings_without_controls",
+        "gimg:ComposeConfigTests.test_logo_is_reserved_with_the_reason_a_pattern",
+        "gimg:ComposeConfigTests.test_target_limits_and_type",
+        "gimg:ComposeConfigTests.test_target_needs_both_sides",
+        "gimg:ComposeConfigTests.test_template_and_logo_are_relative_svg_paths",
+        "gimg:OrderNegativeTests.test_negative_is_a_string",
+        "gimg:OrderNegativeTests.test_negative_is_optional_and_may_be_empty",
+        "gimg:OrderNegativeTests.test_negative_longer_than_prompt_limit",
+        "gimg:OrderTextTests.test_text_by_field_name",
+        "gimg:OrderTextTests.test_text_is_an_object",
+        "gimg:OrderTextTests.test_text_keys_are_field_names_and_logo_is_reserved",
+        "gimg:OrderTextTests.test_text_longer_than_200",
+        "gimg:OrderTextTests.test_text_values_are_strings",
+        "gimg:OrderTextTests.test_text_with_control_characters",
+        "gvoice:LoadSchemaTests.test_cached_but_callers_get_their_own_copy",
+        "gvoice:LoadSchemaTests.test_invalid_names_are_rejected",
+        "gvoice:LoadSchemaTests.test_load_is_read_once",
+        "gvoice:RefTests.test_ref_leaving_the_folder_is_rejected",
+        "gvoice:RefTests.test_ref_that_does_not_resolve",
+        "gvoice:RefTests.test_sibling_ref_inside_sibling_uses_its_own_root",
+        "gvoice:RefTests.test_sibling_ref_to_whole_schema",
+        "gvoice:RefTests.test_sibling_ref_with_pointer",
+        "oi:OperationContract.test_a_missing_language_is_named",
+        "oi:OperationContract.test_a_registered_entry_is_valid",
+        "oi:SchemaChecks.test_load_schema_checks_the_file_and_names_an_unknown_id"
+      ]
+    },
+    {
+      "id": "D02",
+      "topic": "format_error y mensajes es/en",
+      "copies": {
+        "gdev": "format_error",
+        "gimg": "format_error",
+        "gvoice": "format_error",
+        "oi": "SchemaFailure.message(lang)"
+      },
+      "gart": "code y params son el contrato; los textos llegan con el catálogo",
+      "resolution": "deferred",
+      "milestone": "gart-H6",
+      "tests": [
+        "tests.test_schema.OrderAndShapeTests.test_every_code_is_listed"
+      ],
+      "copyTests": [
+        "gdev:KeywordTests.test_false_schema",
+        "gdev:SchemaCheckTests.test_format_error",
+        "gimg:KeywordTests.test_dependent_required",
+        "gimg:KeywordTests.test_false_schema",
+        "gimg:SchemaCheckTests.test_format_error",
+        "gvoice:KeywordTests.test_false_schema",
+        "gvoice:SchemaCheckTests.test_format_error",
+        "oi:Failures.test_every_keyword_has_a_text_in_every_language",
+        "oi:Failures.test_message_in_each_language"
+      ]
+    },
+    {
+      "id": "D03",
+      "topic": "maxProperties y dependentRequired",
+      "copies": {
+        "gdev": "no los admite",
+        "gvoice": "no los admite",
+        "oi": "no los admite"
+      },
+      "gart": "los admite como gimg (ADR 0015); dependentRequired exige cadenas únicas",
+      "resolution": "adopted",
+      "tests": [
+        "tests.test_schema.MaxPropertiesTests.test_max_properties",
+        "tests.test_schema.MaxPropertiesTests.test_malformed_max_properties",
+        "tests.test_schema.DependentRequiredTests.test_dependent_required",
+        "tests.test_schema.DependentRequiredTests.test_malformed_dependent_required"
+      ]
+    },
+    {
+      "id": "D04",
+      "topic": "allOf e if/then/else",
+      "copies": {
+        "gdev": "no los admite",
+        "gimg": "no los admite",
+        "oi": "no los admite"
+      },
+      "gart": "los admite como gvoice (ADR 0015); if nunca da error propio",
+      "resolution": "adopted",
+      "tests": [
+        "tests.test_schema.ConditionalTests.test_if_then_else",
+        "tests.test_schema.ConditionalTests.test_failing_if_does_not_leak_its_errors",
+        "tests.test_schema.AllOfTests.test_all_of_collects_every_failure",
+        "tests.test_schema.AllOfTests.test_cyclic_ref_is_a_schema_error_not_recursion"
+      ]
+    },
+    {
+      "id": "D05",
+      "topic": "forma de los errores: ruta, nombre del param y lista de tipos",
+      "copies": {
+        "oi": "rutas $.a[0], param property, tipos separados por |"
+      },
+      "gart": "JSON Pointer, param name, tipos separados por / (Q-19)",
+      "resolution": "consumer",
+      "milestone": "gart-H8",
+      "tests": [
+        "tests.test_schema.OrderAndShapeTests.test_root_path_is_empty_and_an_empty_key_is_slash",
+        "tests.test_schema.ObjectKeywordTests.test_pointer_escapes",
+        "tests.test_schema.TypeTests.test_type_list"
+      ],
+      "copyTests": [
+        "oi:ArrayKeywords.test_items_validates_each_with_its_index",
+        "oi:ArrayKeywords.test_min_and_max_items",
+        "oi:ArrayKeywords.test_nested_paths",
+        "oi:EnumKeyword.test_lists_the_allowed_values",
+        "oi:Failures.test_every_failure_is_reported_in_a_stable_order",
+        "oi:NumberKeywords.test_minimum_and_maximum_are_inclusive",
+        "oi:ObjectKeywords.test_additional_properties_as_a_schema",
+        "oi:ObjectKeywords.test_additional_properties_false_names_the_extra",
+        "oi:ObjectKeywords.test_properties_validates_each_value_with_its_path",
+        "oi:ObjectKeywords.test_required_names_the_missing_property",
+        "oi:StringKeywords.test_dollar_is_the_end_of_the_string_as_in_json_schema",
+        "oi:StringKeywords.test_min_and_max_length",
+        "oi:StringKeywords.test_pattern_searches_and_names_the_pattern",
+        "oi:TypeKeyword.test_a_boolean_is_not_an_integer_nor_a_number",
+        "oi:TypeKeyword.test_a_list_of_types",
+        "oi:TypeKeyword.test_integer_accepts_a_whole_float_and_number_accepts_an_integer",
+        "oi:TypeKeyword.test_rejects_with_expected_and_actual"
+      ]
+    },
+    {
+      "id": "D06",
+      "topic": "actual en el error type",
+      "copies": {
+        "gdev": "solo expected",
+        "gimg": "solo expected",
+        "gvoice": "solo expected"
+      },
+      "gart": "expected y actual, como oi (Q-19)",
+      "resolution": "adopted",
+      "tests": [
+        "tests.test_schema.TypeTests.test_actual_names_the_json_type_of_the_instance"
+      ]
+    },
+    {
+      "id": "D07",
+      "topic": "check y ValidationError como excepción",
+      "copies": {
+        "oi": "check(value, schema) lanza ValidationError con todos los fallos"
+      },
+      "gart": "validate devuelve la lista; ValidationError es un valor",
+      "resolution": "consumer",
+      "milestone": "gart-H8",
+      "tests": [
+        "tests.test_schema.OrderAndShapeTests.test_many_errors_at_once"
+      ],
+      "copyTests": [
+        "oi:Failures.test_check_raises_with_every_failure_and_returns_a_valid_value"
+      ]
+    },
+    {
+      "id": "D08",
+      "topic": "_error privado",
+      "copies": {
+        "gdev": "los tests llaman a _error",
+        "gimg": "los tests llaman a _error",
+        "gvoice": "los tests llaman a _error"
+      },
+      "gart": "sin _error; un código fuera de CODES no puede salir de validate",
+      "resolution": "internal",
+      "tests": [
+        "tests.test_schema.OrderAndShapeTests.test_every_code_is_listed"
+      ],
+      "copyTests": [
+        "gdev:KeywordTests.test_unlisted_code_is_an_internal_error",
+        "gimg:KeywordTests.test_unlisted_code_is_an_internal_error",
+        "gvoice:KeywordTests.test_unlisted_code_is_an_internal_error"
+      ]
+    },
+    {
+      "id": "D09",
+      "topic": "error de propertyNames",
+      "copies": {
+        "gdev": "params pattern",
+        "gimg": "params pattern",
+        "gvoice": "params pattern"
+      },
+      "gart": "params reason y detail con la causa real; ningún test de las copias lo comprueba",
+      "resolution": "stricter",
+      "tests": [
+        "tests.test_schema.OrderAndShapeTests.test_property_names_error_keeps_the_real_cause"
+      ]
+    },
+    {
+      "id": "D10",
+      "topic": "textos de SchemaError",
+      "copies": {
+        "oi": "textos propios y ubicación schema/..."
+      },
+      "gart": "#/ruta: motivo; el contrato es el tipo SchemaError, no el texto",
+      "resolution": "consumer",
+      "milestone": "gart-H8",
+      "tests": [
+        "tests.test_schema.SchemaCheckTests.test_malformed_values_name_their_path",
+        "tests.test_schema.SchemaCheckTests.test_unknown_keyword_names_its_path"
+      ],
+      "copyTests": [
+        "oi:SchemaChecks.test_an_unsupported_keyword_fails_loudly_with_its_place",
+        "oi:SchemaChecks.test_malformed_values_are_rejected_with_the_reason"
+      ]
+    },
+    {
+      "id": "D11",
+      "topic": "patrones ASCII y números no finitos",
+      "copies": {
+        "oi": "\\d y \\w con Unicode; inf y nan pasan como number"
+      },
+      "gart": "patrones ASCII; inf y nan no son number",
+      "resolution": "stricter",
+      "tests": [
+        "tests.test_schema.ScalarKeywordTests.test_pattern_is_ascii",
+        "tests.test_schema.TypeTests.test_inf_and_nan_are_not_numbers"
+      ]
+    },
+    {
+      "id": "D12",
+      "topic": "esquemas mal formados y palabras clave desconocidas",
+      "copies": {
+        "gdev": "acepta o falla de otra forma",
+        "gimg": "acepta o falla de otra forma",
+        "gvoice": "acepta o falla de otra forma",
+        "oi": "acepta parte"
+      },
+      "gart": "SchemaError con la ruta: enum vacío, type desconocido, límites negativos, format, oneOf, not…",
+      "resolution": "stricter",
+      "tests": [
+        "tests.test_schema.SchemaCheckTests.test_empty_enum_is_rejected",
+        "tests.test_schema.TypeTests.test_unknown_type_is_a_schema_error",
+        "tests.test_schema.SchemaCheckTests.test_unknown_keyword_is_rejected_naming_it",
+        "tests.test_schema.SchemaCheckTests.test_malformed_values_name_their_path"
+      ]
+    }
+  ]
+}
