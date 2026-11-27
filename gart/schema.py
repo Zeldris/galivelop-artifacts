@@ -175,6 +175,65 @@ def _check_ref(root: Any, ref: Any, where: str, seen_nodes: set) -> None:
 def check_schema(schema: Any) -> None:
     """Raise `SchemaError` (naming the path and the cause) unless `schema` is in the supported subset."""
     _check(schema, schema, "#", set())
+    _check_cycles(schema)
+
+
+def _check_cycles(root: Any) -> None:
+    """No schema reaches itself through edges that consume no instance: `$ref`, `allOf`, `if`, `then`, `else`."""
+    nodes: dict = {}
+    todo = [root]
+    while todo:  # every schema node, however it is reached
+        node = todo.pop()
+        if isinstance(node, dict) and id(node) not in nodes:
+            nodes[id(node)] = node
+            todo.extend(_same_instance_edges(node, root))
+            todo.extend(_applicators(node))
+    done: set = set()
+    for start in nodes.values():
+        if id(start) in done:
+            continue
+        active = {id(start)}
+        stack = [(start, iter(_same_instance_edges(start, root)))]
+        while stack:
+            node, children = stack[-1]
+            child = next(children, None)
+            if child is None:
+                stack.pop()
+                active.discard(id(node))
+                done.add(id(node))
+            elif id(child) in active:
+                raise SchemaError("cyclic reference: a schema reaches itself without consuming the instance")
+            elif id(child) not in done:
+                active.add(id(child))
+                stack.append((child, iter(_same_instance_edges(child, root))))
+
+
+def _same_instance_edges(node: dict, root: Any) -> list:
+    edges = []
+    if "$ref" in node:
+        target = _resolve(root, node["$ref"])
+        if isinstance(target, dict):
+            edges.append(target)
+    for sub in node.get("allOf", []):
+        if isinstance(sub, dict):
+            edges.append(sub)
+    for key in ("if", "then", "else"):
+        if isinstance(node.get(key), dict):
+            edges.append(node[key])
+    return edges
+
+
+def _applicators(node: Any) -> list:
+    """Direct subschemas reached by keywords that do consume the instance (or are only definitions)."""
+    if not isinstance(node, dict):
+        return []
+    subs = []
+    for key in ("properties", "$defs"):
+        subs.extend(v for v in node.get(key, {}).values() if isinstance(v, dict))
+    for key in ("items", "propertyNames", "additionalProperties"):
+        if isinstance(node.get(key), dict):
+            subs.append(node[key])
+    return subs
 
 
 def _json_type(value: Any) -> str:

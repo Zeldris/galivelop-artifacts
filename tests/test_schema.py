@@ -352,6 +352,20 @@ class AllOfTests(unittest.TestCase):
         with self.assertRaisesRegex(SchemaError, "cyclic reference"):
             check_schema(direct)
 
+    def test_check_schema_sees_cycles_through_all_of_if_then_else(self):
+        cases = [
+            {"allOf": [{"$ref": "#"}]},
+            {"if": {"$ref": "#"}},
+            {"if": True, "then": {"$ref": "#"}},
+            {"if": True, "else": {"$ref": "#"}},
+            {"$defs": {"a": {"allOf": [{"$ref": "#/$defs/b"}]}, "b": {"allOf": [{"$ref": "#/$defs/a"}]}},
+             "properties": {"x": {"$ref": "#/$defs/a"}}},
+        ]
+        for sch in cases:
+            with self.subTest(sch=sch):
+                with self.assertRaisesRegex(SchemaError, "cyclic reference"):
+                    check_schema(sch)
+
     def test_recursion_through_all_of_over_finite_data_is_fine(self):
         sch = {"$defs": {"n": {"properties": {"k": {"allOf": [{"$ref": "#/$defs/n"}]}}}}, "$ref": "#/$defs/n"}
         self.assertEqual(validate({"k": {"k": {}}}, sch), [])

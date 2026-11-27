@@ -173,32 +173,57 @@ def _string(text: str, path: str) -> str:
 
 
 def _emit(value: Any, path: str, depth: int = 0) -> str:
-    if value is None:
-        return "null"
-    if value is True:
-        return "true"
-    if value is False:
-        return "false"
-    if isinstance(value, int):
-        return str(int(_check_int(value, path)))
-    if isinstance(value, float):
-        return _number(float(_check_float(value, path)))
-    if isinstance(value, str):
-        return _string(value, path)
-    if isinstance(value, (list, tuple, dict)) and depth >= MAX_DEPTH:
-        raise _depth_error("value", path)
-    if isinstance(value, (list, tuple)):
-        return "[" + ",".join(_emit(item, f"{path}/{i}", depth + 1) for i, item in enumerate(value)) + "]"
-    if isinstance(value, dict):
-        for key in value:
-            if not isinstance(key, str):
-                raise CanonError("canon.type", f"object key is not a string: {key!r}", path)
-        parts = []
-        for key in sorted(value, key=lambda k: k.encode("utf-16-be", "surrogatepass")):
-            escaped = key.replace("~", "~0").replace("/", "~1")
-            parts.append(_string(key, path) + ":" + _emit(value[key], f"{path}/{escaped}", depth + 1))
-        return "{" + ",".join(parts) + "}"
-    raise CanonError("canon.type", f"not a JSON type: {type(value).__name__}", path)
+    # Explicit stack (not recursion), so the caller's own stack depth cannot turn a legal value into canon.depth.
+    # Work items: ("v", value, path, depth) to emit, ("k", key, path) for an object key, ("t", text) literal.
+    out: list[str] = []
+    stack: list[tuple] = [("v", value, path, depth)]
+    while stack:
+        item = stack.pop()
+        if item[0] == "t":
+            out.append(item[1])
+            continue
+        if item[0] == "k":
+            out.append(_string(item[1], item[2]) + ":")
+            continue
+        _, value, path, depth = item
+        if value is None:
+            out.append("null")
+        elif value is True:
+            out.append("true")
+        elif value is False:
+            out.append("false")
+        elif isinstance(value, int):
+            out.append(str(int(_check_int(value, path))))
+        elif isinstance(value, float):
+            out.append(_number(float(_check_float(value, path))))
+        elif isinstance(value, str):
+            out.append(_string(value, path))
+        elif isinstance(value, (list, tuple, dict)) and depth >= MAX_DEPTH:
+            raise _depth_error("value", path)
+        elif isinstance(value, (list, tuple)):
+            out.append("[")
+            stack.append(("t", "]"))
+            for i in range(len(value) - 1, -1, -1):
+                stack.append(("v", value[i], f"{path}/{i}", depth + 1))
+                if i:
+                    stack.append(("t", ","))
+        elif isinstance(value, dict):
+            for key in value:
+                if not isinstance(key, str):
+                    raise CanonError("canon.type", f"object key is not a string: {key!r}", path)
+            out.append("{")
+            stack.append(("t", "}"))
+            keys = sorted(value, key=lambda k: k.encode("utf-16-be", "surrogatepass"))
+            for n in range(len(keys) - 1, -1, -1):
+                key = keys[n]
+                escaped = key.replace("~", "~0").replace("/", "~1")
+                stack.append(("v", value[key], f"{path}/{escaped}", depth + 1))
+                stack.append(("k", key, path))
+                if n:
+                    stack.append(("t", ","))
+        else:
+            raise CanonError("canon.type", f"not a JSON type: {type(value).__name__}", path)
+    return "".join(out)
 
 
 def canonical_bytes(obj: Any) -> bytes:

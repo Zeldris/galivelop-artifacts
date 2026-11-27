@@ -197,3 +197,18 @@ class DeterminismTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DeepCallerTests(unittest.TestCase):
+    def test_max_depth_value_from_a_deep_call_stack(self):
+        value = []
+        for _ in range(255):
+            value = [value]  # 256 nested lists
+        expected = b"[" * 256 + b"]" * 256
+
+        def nest(n):
+            if n:
+                return nest(n - 1)
+            return canonical_bytes(value)
+
+        self.assertEqual(nest(sys.getrecursionlimit() - 100), expected)
