@@ -8,11 +8,11 @@
 
 | Campo | Valor |
 |---|---|
-| **Rama** | _(rama de trabajo)_ |
-| **Fase / tarea** | _(fase y tarea en curso; con la rama camino de `main`, qué fases de antes van hechas: «1 hecha (`<commit>`), 2 pendiente»)_ |
-| **Último punto estable** | _(último commit con el check en verde, y qué trajo)_ |
-| **Siguiente paso** | _(el próximo paso concreto, para que la siguiente sesión no tenga que preguntar nada)_ |
-| **Check** | `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`: _(verde / rojo, y qué falla)_ |
+| **Rama** | `claude/arranque` |
+| **Fase / tarea** | DDD final en `docs/records/ddd-galivelop-artifacts.md`, desde `../galivelop-developer/docs/records/` (`ddd-galivelop-artifacts-borrador2.md` y `revision-ddd-gart-borrador2.md`, solo lectura). Preguntas q7–q14 hechas (`docs/questions.md`), sin contestar. Presupuesto de compactaciones: 0 |
+| **Último punto estable** | las preguntas registradas; el DDD sigue siendo el borrador 1 |
+| **Siguiente paso** | con las respuestas, escribir el DDD: q1–q6 y ADR 0001–0006 se conservan; q7 en adelante, un ADR cada una; aplicar R1–R10 y Q-177 a Q-179 (respuesta «a»); hitos `gart-H<n>` |
+| **Check** | `bash -n .githooks/pre-commit`, `bash -n .githooks/pre-push`, `python3 -m unittest discover -s tests -t .`, `python3 .claude/gw/scripts/doctor.py`, `python3 .claude/gw/scripts/ci-local.py --validate`: verde (árbol `cbc403d`) |
 
 ## Para la próxima publicación
 
