@@ -130,6 +130,16 @@ class DepthTests(unittest.TestCase):
     def test_depth_ignores_strings(self):
         self.assertEqual(loads_strict('"' + "[" * 2000 + '\\"]"'), "[" * 2000 + '"]')
 
+    def test_depth_string_escapes(self):
+        # an escaped backslash ends the escape; an escaped quote does not end the string
+        self.assertEqual(loads_strict('["\\\\", "[[["]'), ["\\", "[[["])
+        self.assertEqual(loads_strict('"\\"[["'), '"[[')
+        deep = "[" * (MAX_DEPTH + 1) + "]" * (MAX_DEPTH + 1)
+        with self.assertRaises(CanonError) as cm:
+            loads_strict('["\\\\"' + deep.replace("[", "[", 1) + "]")
+        self.assertEqual(cm.exception.code, "canon.depth")
+        self.assertIn("nested deeper", str(cm.exception))
+
     def test_limit_exact(self):
         text = "[" * MAX_DEPTH + "]" * MAX_DEPTH
         self.assertEqual(canonical_bytes(loads_strict(text)).decode(), text)

@@ -18,6 +18,8 @@ import hashlib
 import json
 import math
 import os
+import re
+from itertools import accumulate
 from typing import Any
 
 MAX_SAFE_INT = 2**53 - 1
@@ -98,43 +100,56 @@ def _pairs(pairs: list[tuple[str, Any]]) -> Any:
     return result
 
 
+_STRING = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*(?:"|\Z)', re.DOTALL)
+_NOT_BRACKET = re.compile(r"[^\[\]{}]+")
+_STEP = {"[": 1, "{": 1, "]": -1, "}": -1}
+
+
 def _depth_of(text: str) -> int:
     """Deepest container nesting of JSON `text` (strings skipped); malformed text is left to the parser."""
-    depth = deepest = 0
-    in_string = escaped = False
-    for ch in text:
-        if in_string:
-            if escaped:
-                escaped = False
-            elif ch == "\\":
-                escaped = True
-            elif ch == '"':
-                in_string = False
-        elif ch == '"':
-            in_string = True
-        elif ch in "[{":
-            depth += 1
-            deepest = max(deepest, depth)
-        elif ch in "]}":
-            depth -= 1
-    return deepest
+    if "\\" in text:
+        outside = _STRING.sub("", text)
+    else:  # no escapes: the even pieces between quotes are outside strings (an unterminated string is the last odd piece)
+        outside = "".join(text.split('"')[::2])
+    brackets = _NOT_BRACKET.sub("", outside)
+    return max(accumulate(map(_STEP.__getitem__, brackets), initial=0))
+
+
+_PLAIN_SCALARS = (int, float, bool, type(None))  # parser output of these types can never be rejected here
+
+
+def _path_of(link: tuple[Any, str] | None) -> str:
+    """The JSON Pointer of a linked (parent link, key) chain; built only when an error is raised."""
+    keys = []
+    while link is not None:
+        link, key = link
+        keys.append(key)
+    return "".join(reversed(keys))
 
 
 def _walk(value: Any) -> None:
     """Raise the first rejected value in document order, with its JSON Pointer."""
-    stack: list[tuple[Any, str]] = [(value, "")]
+    stack: list[tuple[Any, tuple[Any, str] | None]] = [(value, None)]
     while stack:
-        item, path = stack.pop()
+        item, link = stack.pop()
         if isinstance(item, _Bad):
-            raise CanonError(item.code, item.reason, path + item.suffix)
+            raise CanonError(item.code, item.reason, _path_of(link) + item.suffix)
         if isinstance(item, str):
-            _check_utf8(item, path)
+            if not item.isascii():
+                _check_utf8(item, _path_of(link))
         elif isinstance(item, list):
-            stack.extend((child, f"{path}/{i}") for i, child in reversed(list(enumerate(item))))
+            for i in range(len(item) - 1, -1, -1):
+                child = item[i]
+                if type(child) not in _PLAIN_SCALARS:
+                    stack.append((child, (link, f"/{i}")))
         elif isinstance(item, dict):
             for key in item:
-                _check_utf8(key, path + _pointer(key))
-            stack.extend((child, path + _pointer(key)) for key, child in reversed(list(item.items())))
+                if not key.isascii():
+                    _check_utf8(key, _path_of((link, _pointer(key))))
+            for key in reversed(list(item)):
+                child = item[key]
+                if type(child) not in _PLAIN_SCALARS:
+                    stack.append((child, (link, _pointer(key))))
 
 
 def loads_strict(text: str) -> Any:
