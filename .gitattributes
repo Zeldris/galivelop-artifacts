@@ -1,2 +1,3 @@
 # galivelop-workflow: the token ledger only grows, branches merge by keeping both
 docs/metrics/ledger.jsonl merge=union
+tests/vectors/*.json -text
