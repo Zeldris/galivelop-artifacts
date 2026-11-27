@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
-| **Fase / tarea** | gw-update 0.9.0→0.9.1 hecho (Q-9..Q-12 respondidas: en esta rama, `--update`, reglas nuevas de `REVIEW.md` a mano). gart-H2 sin empezar. Presupuesto de compactaciones: 0 |
+| **Fase / tarea** | gw-update 0.9.0→0.9.1 hecho (Q-9..Q-12 respondidas: en esta rama, `--update`, reglas nuevas de `REVIEW.md` a mano). gart-H2 empezado: 3 de las 4 copias clonadas en solo lectura (gimg, gvoice, oi), un Explore haiku las compara; `galivelop-developer` rechazado por el permiso automático (Q-13 abierta). Presupuesto de compactaciones: 0 |
 | **Último punto estable** | el commit de la 0.9.1 |
-| **Siguiente paso** | gart-H2: `merge-main.py`, `gw-selector`, y reparto con `gw-orchestrate-dealer`: añadir en solo lectura los 4 repos de las copias (Q-12 a) y que un subagente `Explore` `haiku` devuelva el resumen con rutas de cuál es la más completa; a `main` solo con confirmación y las tres fases |
+| **Siguiente paso** | gart-H2: respuesta a Q-13 (gdev); si el resumen del Explore se perdió, repetirlo sobre los clones (`/home/user/zeldris/galivelop-{image,voice}-generator`, `/home/user/galivelop-client-catcher`, se reclonan con `git clone --depth 1`); luego un `gw-worker` `sonnet` migra el validador y sus tests; a `main` solo con confirmación y las tres fases |
 | **Check** | verde tras la 0.9.1 (unittest, doctor sin FAIL, `apply.py --check` en 0, ci-local) |
 
 ## Para la próxima publicación

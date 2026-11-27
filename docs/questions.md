@@ -110,3 +110,10 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 - Recommendation: a: añadirlos en solo lectura; los lee un subagente Explore haiku que devuelve un resumen con rutas, la sesión principal no los abre
 - Answer: a
 - Answered: 2026-11-27
+
+## Q-13
+- Refs: gart-H2
+- Status: open
+- Asked: 2026-11-27
+- Question: galivelop-developer no se pudo añadir (el permiso automático lo rechazó; los otros 3 ya están clonados en solo lectura): a) lo autorizas tú (regla de permiso para add_repo o lo añades a la sesión) y lo leo igual; b) se elige la copia más completa entre las 3 y gdev se compara en gart-H3
+- Recommendation: a: sin gdev la comparación queda con 3 de 4 copias; gdev es el primer consumidor (gart-H7), así que conviene verla antes de elegir
