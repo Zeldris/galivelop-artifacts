@@ -139,7 +139,8 @@ dueño del validador, del formato `KindId`, del canon y de las reglas de versió
    - Test: cada fila de la tabla tiene su caso; los esquemas actuales de cada copia pasan `check_schema`.
 9. **JSON canónico único: RFC 8785 (JCS)**, claves en orden de unidades UTF-16 y números con el formato de
    ECMAScript, escrito solo con la biblioteca estándar. Restricciones de entrada propias: se rechazan los números
-   (enteros o no) fuera de ±(2^53−1), `NaN`, `±Inf`, `-0` y las claves duplicadas (estas, al leer con `loads_strict`).
+   (enteros o no) fuera de ±(2^53−1), `NaN`, `±Inf`, `-0`, las claves duplicadas (estas, al leer con `loads_strict`) y más de 256 niveles de
+   listas u objetos anidados (`MAX_DEPTH`, igual en cualquier versión de Python).
    - Test: vectores fijos en un JSON, con los bytes esperados en hex y el hash; `.gitattributes` los marca `-text`.
      Cada restricción tiene su caso de rechazo con su motivo. El CI los corre en Linux; macOS, Windows y la Deck se
      comprueban en la máquina y quedan pendientes en el plan hasta entonces.

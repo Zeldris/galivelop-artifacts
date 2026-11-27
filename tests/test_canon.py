@@ -102,7 +102,22 @@ class ValueTests(unittest.TestCase):
         cyclic.append(cyclic)
         for value in (deep, cyclic):
             err = self.check(value, "canon.depth", "nested too deeply (or cyclic)")
-            self.assertEqual(err.path, "")
+            self.assertTrue(err.path.startswith("/0/0/"), err.path)
+
+    def test_depth_limit_is_exact(self):
+        from gart.canon import MAX_DEPTH
+
+        text = "[" * MAX_DEPTH + "]" * MAX_DEPTH
+        value = loads_strict(text)
+        self.assertEqual(canonical_bytes(value), text.encode())
+        deeper = "[" * (MAX_DEPTH + 1) + "]" * (MAX_DEPTH + 1)
+        with self.assertRaises(CanonError) as cm:
+            loads_strict(deeper)
+        self.assertEqual(cm.exception.code, "canon.depth")
+        self.assertIn(f"more than {MAX_DEPTH}", str(cm.exception))
+        self.check([value], "canon.depth", "nested too deeply (or cyclic)")
+        nested = {"a": value}
+        self.check(nested, "canon.depth", "nested too deeply (or cyclic)")
 
     def test_bool_is_bool(self):
         self.assertEqual(canonical_bytes([True, False, 1, 0]), b"[true,false,1,0]")
