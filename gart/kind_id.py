@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 # DDD invariant 1. Explicit ASCII ranges, so no Unicode letters or digits slip in.
 PATTERN = r"^[a-z][a-z0-9]*\.[a-z][a-z0-9_.]*/(0|[1-9][0-9]*)$"
-_REGEX = re.compile(r"([a-z][a-z0-9]*)\.([a-z][a-z0-9_.]*)/(0|[1-9][0-9]*)")
+_REGEX = re.compile(PATTERN)
 
 
 class KindIdError(ValueError):
@@ -32,7 +32,11 @@ class KindId:
         # Building one by hand goes through the same rule as parsing.
         if not isinstance(self.version, int) or isinstance(self.version, bool):
             raise KindIdError("kind_id.format", self.version, "version is not an integer")
-        KindId.parse(f"{self.namespace}.{self.name}/{self.version}")
+        text = f"{self.namespace}.{self.name}/{self.version}"
+        parsed = KindId.parse(text)
+        # `KindId("a.b", "c", 1)` joins to `a.b.c/1`, which parses as `a` + `b.c`: reject what does not round-trip.
+        if (parsed.namespace, parsed.name, parsed.version) != (self.namespace, self.name, self.version):
+            raise KindIdError("kind_id.format", text, "fields do not round-trip through the text form")
 
     @classmethod
     def parse(cls, text: object) -> KindId:
@@ -43,16 +47,25 @@ class KindId:
         match = _REGEX.fullmatch(text)
         if match is None:
             raise KindIdError("kind_id.format", text, f"kind id does not match {PATTERN}")
-        namespace, name, version = match.groups()
+        head, _, digits = text.rpartition("/")
+        namespace, _, name = head.partition(".")
+        try:
+            version = int(digits)
+        except ValueError:  # more digits than Python's int limit
+            raise KindIdError("kind_id.format", text, "version has too many digits") from None
         kind = object.__new__(cls)
         object.__setattr__(kind, "namespace", namespace)
         object.__setattr__(kind, "name", name)
-        object.__setattr__(kind, "version", int(version))
+        object.__setattr__(kind, "version", version)
         return kind
 
     @staticmethod
     def is_valid(text: object) -> bool:
-        return isinstance(text, str) and _REGEX.fullmatch(text) is not None
+        try:
+            KindId.parse(text)
+        except KindIdError:
+            return False
+        return True
 
     @property
     def provisional(self) -> bool:

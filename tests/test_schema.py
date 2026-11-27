@@ -20,22 +20,22 @@ class TypeTests(unittest.TestCase):
             with self.subTest(type=name):
                 self.assertEqual(validate(good, {"type": name}), [])
                 self.assertEqual(validate(bad, {"type": name}),
-                                 [ValidationError("/", "type", {"expected": name})])
+                                 [ValidationError("", "type", {"expected": name})])
 
     def test_type_list(self):
         sch = {"type": ["string", "null"]}
         self.assertEqual(validate(None, sch), [])
         self.assertEqual(validate("a", sch), [])
-        self.assertEqual(validate(1, sch), [ValidationError("/", "type", {"expected": "string/null"})])
+        self.assertEqual(validate(1, sch), [ValidationError("", "type", {"expected": "string/null"})])
 
     def test_bool_is_not_integer_or_number(self):
         for name in ("integer", "number"):
-            self.assertEqual(errs(True, {"type": name}), [("/", "type")])
-        self.assertEqual(errs(1, {"type": "boolean"}), [("/", "type")])
+            self.assertEqual(errs(True, {"type": name}), [("", "type")])
+        self.assertEqual(errs(1, {"type": "boolean"}), [("", "type")])
 
     def test_whole_float_is_integer(self):
         self.assertEqual(validate(1.0, {"type": "integer"}), [])
-        self.assertEqual(errs(1.5, {"type": "integer"}), [("/", "type")])
+        self.assertEqual(errs(1.5, {"type": "integer"}), [("", "type")])
 
     def test_int_is_number(self):
         self.assertEqual(validate(2, {"type": "number"}), [])
@@ -44,7 +44,7 @@ class TypeTests(unittest.TestCase):
         for value in (float("inf"), float("-inf"), float("nan")):
             for name in ("number", "integer"):
                 with self.subTest(value=value, type=name):
-                    self.assertEqual(errs(value, {"type": name}), [("/", "type")])
+                    self.assertEqual(errs(value, {"type": name}), [("", "type")])
 
     def test_unknown_type_is_a_schema_error(self):
         with self.assertRaisesRegex(SchemaError, "unknown type 'text'"):
@@ -63,7 +63,7 @@ class ObjectKeywordTests(unittest.TestCase):
     def test_required(self):
         sch = {"required": ["a", "b"]}
         self.assertEqual(validate({"a": 1, "b": 2}, sch), [])
-        self.assertEqual(validate({"a": 1}, sch), [ValidationError("/", "required", {"name": "b"})])
+        self.assertEqual(validate({"a": 1}, sch), [ValidationError("", "required", {"name": "b"})])
 
     def test_additional_properties_false(self):
         sch = {"properties": {"a": {}}, "additionalProperties": False}
@@ -83,12 +83,12 @@ class ObjectKeywordTests(unittest.TestCase):
         sch = {"propertyNames": {"pattern": "^[a-z]+$"}}
         self.assertEqual(validate({"abc": 1}, sch), [])
         self.assertEqual(validate({"Bad": 1}, sch),
-                         [ValidationError("/Bad", "propertyNames", {"name": "Bad", "pattern": "^[a-z]+$"})])
+                         [ValidationError("/Bad", "propertyNames", {"name": "Bad", "reason": "pattern", "detail": {"pattern": "^[a-z]+$"}})])
 
     def test_min_properties(self):
         sch = {"minProperties": 2}
         self.assertEqual(validate({"a": 1, "b": 2}, sch), [])
-        self.assertEqual(validate({"a": 1}, sch), [ValidationError("/", "minProperties", {"limit": 2})])
+        self.assertEqual(validate({"a": 1}, sch), [ValidationError("", "minProperties", {"limit": 2})])
 
     def test_keywords_ignore_other_types(self):
         self.assertEqual(validate("x", {"required": ["a"], "minProperties": 3, "minItems": 3}), [])
@@ -110,11 +110,11 @@ class ArrayKeywordTests(unittest.TestCase):
 
     def test_min_items(self):
         self.assertEqual(validate([1], {"minItems": 1}), [])
-        self.assertEqual(validate([], {"minItems": 1}), [ValidationError("/", "minItems", {"limit": 1})])
+        self.assertEqual(validate([], {"minItems": 1}), [ValidationError("", "minItems", {"limit": 1})])
 
     def test_max_items(self):
         self.assertEqual(validate([1], {"maxItems": 1}), [])
-        self.assertEqual(validate([1, 2], {"maxItems": 1}), [ValidationError("/", "maxItems", {"limit": 1})])
+        self.assertEqual(validate([1, 2], {"maxItems": 1}), [ValidationError("", "maxItems", {"limit": 1})])
 
 
 class ScalarKeywordTests(unittest.TestCase):
@@ -122,58 +122,58 @@ class ScalarKeywordTests(unittest.TestCase):
         sch = {"enum": ["a", 2, None]}
         for ok in ("a", 2, 2.0, None):
             self.assertEqual(validate(ok, sch), [])
-        self.assertEqual(validate("b", sch), [ValidationError("/", "enum", {"allowed": '"a", 2, null'})])
+        self.assertEqual(validate("b", sch), [ValidationError("", "enum", {"allowed": '"a", 2, null'})])
 
     def test_enum_and_const_do_not_equate_bool_and_number(self):
-        self.assertEqual(errs(True, {"enum": [1]}), [("/", "enum")])
-        self.assertEqual(errs(0, {"enum": [False]}), [("/", "enum")])
-        self.assertEqual(errs(1, {"const": True}), [("/", "const")])
+        self.assertEqual(errs(True, {"enum": [1]}), [("", "enum")])
+        self.assertEqual(errs(0, {"enum": [False]}), [("", "enum")])
+        self.assertEqual(errs(1, {"const": True}), [("", "const")])
 
     def test_enum_compares_containers_deeply(self):
         self.assertEqual(validate({"a": [1.0]}, {"enum": [{"a": [1]}]}), [])
-        self.assertEqual(errs({"a": [True]}, {"enum": [{"a": [1]}]}), [("/", "enum")])
+        self.assertEqual(errs({"a": [True]}, {"enum": [{"a": [1]}]}), [("", "enum")])
 
     def test_const(self):
         self.assertEqual(validate("x", {"const": "x"}), [])
-        self.assertEqual(validate("y", {"const": "x"}), [ValidationError("/", "const", {"expected": '"x"'})])
+        self.assertEqual(validate("y", {"const": "x"}), [ValidationError("", "const", {"expected": '"x"'})])
 
     def test_pattern_uses_search(self):
         self.assertEqual(validate("xxabcxx", {"pattern": "abc"}), [])
-        self.assertEqual(validate("xyz", {"pattern": "abc"}), [ValidationError("/", "pattern", {"pattern": "abc"})])
+        self.assertEqual(validate("xyz", {"pattern": "abc"}), [ValidationError("", "pattern", {"pattern": "abc"})])
 
     def test_pattern_dollar_does_not_match_before_trailing_newline(self):
         sch = {"pattern": "^[a-z]+$"}
         self.assertEqual(validate("abc", sch), [])
-        self.assertEqual(errs("abc\n", sch), [("/", "pattern")])
+        self.assertEqual(errs("abc\n", sch), [("", "pattern")])
         self.assertEqual(validate("a$", {"pattern": "^a[$]$"}), [])
         self.assertEqual(validate("a$", {"pattern": "^a\\$$"}), [])
 
     def test_pattern_is_ascii(self):
-        self.assertEqual(errs("١", {"pattern": "^\\d$"}), [("/", "pattern")])
+        self.assertEqual(errs("١", {"pattern": "^\\d$"}), [("", "pattern")])
         self.assertEqual(validate("1", {"pattern": "^\\d$"}), [])
 
     def test_min_length(self):
         self.assertEqual(validate("ab", {"minLength": 2}), [])
-        self.assertEqual(validate("a", {"minLength": 2}), [ValidationError("/", "minLength", {"limit": 2})])
+        self.assertEqual(validate("a", {"minLength": 2}), [ValidationError("", "minLength", {"limit": 2})])
 
     def test_max_length(self):
         self.assertEqual(validate("ab", {"maxLength": 2}), [])
-        self.assertEqual(validate("abc", {"maxLength": 2}), [ValidationError("/", "maxLength", {"limit": 2})])
+        self.assertEqual(validate("abc", {"maxLength": 2}), [ValidationError("", "maxLength", {"limit": 2})])
 
     def test_minimum(self):
         self.assertEqual(validate(5, {"minimum": 5}), [])
-        self.assertEqual(validate(4.5, {"minimum": 5}), [ValidationError("/", "minimum", {"limit": 5})])
+        self.assertEqual(validate(4.5, {"minimum": 5}), [ValidationError("", "minimum", {"limit": 5})])
 
     def test_maximum(self):
         self.assertEqual(validate(5, {"maximum": 5}), [])
-        self.assertEqual(validate(6, {"maximum": 5}), [ValidationError("/", "maximum", {"limit": 5})])
+        self.assertEqual(validate(6, {"maximum": 5}), [ValidationError("", "maximum", {"limit": 5})])
 
     def test_bounds_ignore_bool(self):
         self.assertEqual(validate(True, {"minimum": 5}), [])
 
     def test_boolean_schemas(self):
         self.assertEqual(validate(1, True), [])
-        self.assertEqual(validate(1, False), [ValidationError("/", "false", {})])
+        self.assertEqual(validate(1, False), [ValidationError("", "false", {})])
         self.assertEqual(errs({"a": 1}, {"properties": {"a": False}}), [("/a", "false")])
 
 
@@ -220,6 +220,28 @@ class RefTests(unittest.TestCase):
             check_schema({"$ref": 3})
 
 
+class RefTargetTests(unittest.TestCase):
+    def test_ref_target_must_be_a_schema(self):
+        sch = {"$ref": "#/properties/x/minLength", "properties": {"x": {"minLength": 3}}}
+        with self.assertRaisesRegex(SchemaError, "does not point to a schema"):
+            validate(1, sch)
+
+    def test_ref_target_is_checked(self):
+        with self.assertRaisesRegex(SchemaError, "unknown type 'bogus'"):
+            validate(1, {"$ref": "#/const", "const": {"type": "bogus"}})
+
+    def test_ref_that_is_not_hashable_is_a_schema_error(self):
+        with self.assertRaisesRegex(SchemaError, "reference must be a string"):
+            check_schema({"$ref": {}})
+        with self.assertRaisesRegex(SchemaError, "reference must be a string"):
+            check_schema({"$defs": {"a": {"$ref": {}}}, "$ref": "#/$defs/a"})
+
+    def test_ref_back_to_an_ancestor_terminates(self):
+        sch = {"properties": {"a": {"$ref": "#"}}}
+        check_schema(sch)
+        self.assertEqual(errs({"a": {"a": {}}}, sch), [])
+
+
 class SchemaCheckTests(unittest.TestCase):
     def test_every_annotation_is_accepted_and_ignored(self):
         for key in sorted(ANNOTATIONS):
@@ -227,7 +249,7 @@ class SchemaCheckTests(unittest.TestCase):
                 sch = {key: "anything", "type": "integer"}
                 check_schema(sch)
                 self.assertEqual(validate(1, sch), [])
-                self.assertEqual(errs("x", sch), [("/", "type")])
+                self.assertEqual(errs("x", sch), [("", "type")])
 
     def test_unknown_keyword_is_rejected_naming_it(self):
         for key in ("allOf", "if", "format", "maxProperties", "dependentRequired", "oneOf"):
@@ -299,10 +321,29 @@ class OrderAndShapeTests(unittest.TestCase):
     def test_many_errors_at_once(self):
         sch = {"type": "object", "required": ["a"],
                "properties": {"n": {"type": "integer", "minimum": 3}}}
-        self.assertEqual(errs({"n": 1}, sch), [("/", "required"), ("/n", "minimum")])
+        self.assertEqual(errs({"n": 1}, sch), [("", "required"), ("/n", "minimum")])
 
-    def test_root_path_is_slash(self):
-        self.assertEqual(validate(1, {"type": "string"})[0].path, "/")
+    def test_root_path_is_empty_and_an_empty_key_is_slash(self):
+        self.assertEqual(validate(1, {"type": "string"})[0].path, "")
+        self.assertEqual(errs({"": 1}, {"properties": {"": {"type": "string"}}}), [("/", "type")])
+
+    def test_errors_are_sorted_by_path_then_code(self):
+        self.assertEqual(errs({}, {"required": ["a"], "minProperties": 1}),
+                         [("", "minProperties"), ("", "required")])
+        sch = {"propertyNames": {"maxLength": 0}, "properties": {"a": {"type": "integer"}}}
+        self.assertEqual(errs({"a": "x", "b": 1}, sch),
+                         [("/a", "propertyNames"), ("/a", "type"), ("/b", "propertyNames")])
+
+    def test_property_names_error_keeps_the_real_cause(self):
+        got = validate({"ab": 1}, {"propertyNames": {"maxLength": 1}})
+        self.assertEqual(got, [ValidationError("/ab", "propertyNames",
+                                               {"name": "ab", "reason": "maxLength", "detail": {"limit": 1}})])
+
+    def test_huge_numbers_do_not_overflow(self):
+        self.assertEqual(validate(1, {"minimum": 10**400}), [ValidationError("", "minimum", {"limit": 10**400})])
+        self.assertEqual(validate(1, {"maximum": -(10**400)}), [ValidationError("", "maximum", {"limit": -(10**400)})])
+        with self.assertRaisesRegex(SchemaError, "must be a finite number"):
+            check_schema({"minimum": float("inf")})
 
     def test_every_code_is_listed(self):
         sch = {"type": "object", "required": ["r"], "minProperties": 9, "propertyNames": {"pattern": "^q$"},

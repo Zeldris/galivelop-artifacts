@@ -4,9 +4,10 @@ Ported from gvoice (`gvoice/schema.py` at galivelop-voice-generator@1990d92), it
 - `allOf`, `if`/`then`/`else`, `maxProperties`, `dependentRequired`: outside the DDD section 6 keyword set (gart-H3).
 - `$ref` to sibling files, `load_schema`, the schemas folder and its cache: they belong to the `Registry` (gart-H4).
 - i18n and `format_error`: messages come with the catalog (gart-H6); `code` and `params` are the stable contract.
-Added from opportunity_intel: `enum` must be a non-empty list, and errors come in a stable order.
+Added from opportunity_intel: `enum` must be a non-empty list, and errors come in a stable order (by path, then code).
 
-Paths are JSON Pointers; the root is `/`.
+Paths are JSON Pointers (RFC 6901): the root is `""`, and a root key `""` is `/`.
+Errors come sorted by `(path, code)`.
 """
 
 from __future__ import annotations
@@ -76,14 +77,18 @@ def _is_int(value: Any) -> bool:
 
 
 def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    # math.isfinite(int) would overflow on huge ints, so only floats are asked.
+    return _is_int(value) or (isinstance(value, float) and math.isfinite(value))
 
 
-def _check(schema: Any, root: Any, where: str) -> None:
+def _check(schema: Any, root: Any, where: str, seen: set) -> None:
     if isinstance(schema, bool):
         return
     if not isinstance(schema, dict):
         raise SchemaError(f"{where}: schema must be an object")
+    if id(schema) in seen:  # already checked (or being checked, through a reference)
+        return
+    seen.add(id(schema))
     for key, value in schema.items():
         if key in ANNOTATIONS:
             continue
@@ -94,11 +99,11 @@ def _check(schema: Any, root: Any, where: str) -> None:
             if not isinstance(value, dict):
                 raise SchemaError(f"{here}: must be an object")
             for name, sub in value.items():
-                _check(sub, root, f"{here}/{name}")
+                _check(sub, root, f"{here}/{name}", seen)
         elif key in ("items", "propertyNames"):
-            _check(value, root, here)
+            _check(value, root, here, seen)
         elif key == "additionalProperties":
-            _check(value, root, here)
+            _check(value, root, here, seen)
         elif key == "enum":
             if not isinstance(value, list) or not value:
                 raise SchemaError(f"{here}: must be a non-empty list")
@@ -126,26 +131,34 @@ def _check(schema: Any, root: Any, where: str) -> None:
             if not _is_number(value):
                 raise SchemaError(f"{here}: must be a finite number")
         elif key == "$ref":
-            _check_ref(root, value, where)
+            _check_ref(root, value, where, seen)
 
 
-def _check_ref(root: Any, ref: Any, where: str) -> None:
-    """The reference resolves and its chain of bare references is not a cycle."""
+def _check_ref(root: Any, ref: Any, where: str, seen_nodes: set) -> None:
+    """The reference resolves to a valid schema and its chain of bare references is not a cycle."""
     try:
         node = _resolve(root, ref)
         seen = {ref}
-        while isinstance(node, dict) and "$ref" in node:
-            if node["$ref"] in seen:
+        while True:
+            if not isinstance(node, (dict, bool)):
+                raise SchemaError(f"reference {ref!r} does not point to a schema")
+            _check(node, root, ref, seen_nodes)
+            if not (isinstance(node, dict) and "$ref" in node):
+                break
+            nxt = node["$ref"]
+            if not isinstance(nxt, str):
+                raise SchemaError("reference must be a string")
+            if nxt in seen:
                 raise SchemaError(f"cyclic reference {ref!r}")
-            seen.add(node["$ref"])
-            node = _resolve(root, node["$ref"])
+            seen.add(nxt)
+            node = _resolve(root, nxt)
     except SchemaError as exc:
         raise SchemaError(f"{where}: {exc}") from None
 
 
 def check_schema(schema: Any) -> None:
     """Raise `SchemaError` (naming the path and the cause) unless `schema` is in the supported subset."""
-    _check(schema, schema, "#")
+    _check(schema, schema, "#", set())
 
 
 def _is_type(value: Any, name: str) -> bool:
@@ -204,7 +217,8 @@ def _pointer(path: tuple, token: Any) -> tuple:
 
 
 def _render(path: tuple) -> str:
-    return "/" + "/".join(t.replace("~", "~0").replace("/", "~1") for t in path)
+    # RFC 6901: the root is the empty pointer; a root key "" is "/".
+    return "".join("/" + t.replace("~", "~0").replace("/", "~1") for t in path)
 
 
 def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: frozenset = frozenset()) -> None:
@@ -272,7 +286,7 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
                     out.append(
                         ValidationError(
                             _render(_pointer(path, key)), "propertyNames",
-                            {"name": key, "pattern": sub[0].params.get("pattern", "")},
+                            {"name": key, "reason": sub[0].code, "detail": sub[0].params},
                         )
                     )
         extra = schema.get("additionalProperties", True)
@@ -286,11 +300,12 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
 
 
 def validate(instance: Any, schema: Any) -> list[ValidationError]:
-    """Every way `instance` breaks `schema`, in a stable order; `[]` when it conforms.
+    """Every way `instance` breaks `schema`, in a stable order (by path, then code); `[]` when it conforms.
 
     Raises `SchemaError` if the schema itself is invalid.
     """
     check_schema(schema)
     errors: list[ValidationError] = []
     _validate(instance, schema, schema, (), errors)
+    errors.sort(key=lambda e: (e.path, e.code))  # stable: DDD section 5 invariant 7
     return errors

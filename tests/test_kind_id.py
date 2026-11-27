@@ -70,8 +70,19 @@ class ParseTest(unittest.TestCase):
                 self.assertIn("not a string", str(caught.exception))
 
     def test_is_a_value_error(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KindIdError) as caught:
             KindId.parse("nope")
+        self.assertIsInstance(caught.exception, ValueError)
+        self.assertEqual(caught.exception.code, "kind_id.format")
+        self.assertIn("does not match", str(caught.exception))
+
+    def test_huge_version_is_a_kind_id_error(self):
+        text = "a.b/" + "1" * 5000
+        self.assertFalse(KindId.is_valid(text))
+        with self.assertRaises(KindIdError) as caught:
+            KindId.parse(text)
+        self.assertEqual(caught.exception.code, "kind_id.format")
+        self.assertIn("too many digits", str(caught.exception))
 
 
 class ValueObjectTest(unittest.TestCase):
@@ -87,6 +98,12 @@ class ValueObjectTest(unittest.TestCase):
                 with self.assertRaises(KindIdError) as caught:
                     KindId("gworld", "pack", version)
                 self.assertIn("not an integer", str(caught.exception))
+
+    def test_constructor_rejects_fields_that_do_not_round_trip(self):
+        with self.assertRaises(KindIdError) as caught:
+            KindId("a.b", "c", 1)
+        self.assertEqual(caught.exception.code, "kind_id.format")
+        self.assertIn("do not round-trip", str(caught.exception))
 
     def test_frozen_hashable_ordered(self):
         a, b = KindId.parse("gworld.pack/0"), KindId.parse("gworld.pack/1")

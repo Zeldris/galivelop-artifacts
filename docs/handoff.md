@@ -9,10 +9,10 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
-| **Fase / tarea** | gart-H2 implementado (`gart/schema.py` + `tests/test_schema.py`, base gvoice@1990d92 recortada a las 18 palabras clave del DDD §6, con `enum` no vacío y orden estable de oi); falta la revisión del bloque y cerrar la tarea. Presupuesto de compactaciones: 0 |
-| **Último punto estable** | el commit de gart-H2 (validador del subconjunto de JSON Schema) |
-| **Siguiente paso** | revisión del bloque con `/code-review` (diff desde el último `Findings:`) y cerrar gart-H2; después gart-H3 (apuntado: `allOf`, `if/then/else`, `maxProperties`, `dependentRequired`); a `main` solo con confirmación y las tres fases |
-| **Check** | verde tras gart-H2 (unittest, doctor sin FAIL, ci-local) |
+| **Fase / tarea** | gart-H2 hecho y bloque (gart-H1 y gart-H2) revisado: 10 hallazgos aplicados, 4 leves en `docs/records/pending.md`. Presupuesto de compactaciones: 0 |
+| **Último punto estable** | el commit `fix(gart-H1,gart-H2)` con los arreglos de la revisión del bloque |
+| **Siguiente paso** | gart-H9: canon; o ir a `main` con las tres fases (fase 2: gw-opt-tokens y retro) si la persona lo pide |
+| **Check** | verde tras los arreglos de la revisión (unittest, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación
 
@@ -20,10 +20,11 @@ _(lo que va a `main` a continuación, y a qué espera)_
 
 ## Hecho (5 últimas)
 
-1. 2026-11-27 — gart-H2: `gart/schema.py` (`SchemaError`, `ValidationError`, `check_schema`, `validate`), portado de gvoice; 56 tests.
-2. 2026-11-27 — CI de GitHub arranca otra vez (verde en f45a1ce); quitado de pendientes.
-3. 2026-11-27 — Flujo a v0.9.1 (`/gw-update`): 110 archivos del flujo, `gw.json`, 2 reglas nuevas en `REVIEW.md`, marcadores.
-4. 2026-11-27 — gart-H1: `KindId` (análisis, validación, `/0` provisional, `next()`), inv. 1 con tabla de válidos e inválidos.
+1. 2026-11-27 — Revisión del bloque gart-H1/H2: 10 arreglos (KindId ida y vuelta y versión enorme, `$ref` a no-esquema, raíz `""`, orden por (ruta, código), propertyNames con causa, números enormes); 4 leves apuntados.
+2. 2026-11-27 — gart-H2: `gart/schema.py` (`SchemaError`, `ValidationError`, `check_schema`, `validate`), portado de gvoice; 56 tests.
+3. 2026-11-27 — CI de GitHub arranca otra vez (verde en f45a1ce); quitado de pendientes.
+4. 2026-11-27 — Flujo a v0.9.1 (`/gw-update`): 110 archivos del flujo, `gw.json`, 2 reglas nuevas en `REVIEW.md`, marcadores.
+5. 2026-11-27 — gart-H1: `KindId` (análisis, validación, `/0` provisional, `next()`), inv. 1 con tabla de válidos e inválidos.
 
 ## Pendiente
 
