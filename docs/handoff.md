@@ -11,7 +11,7 @@
 | **Rama** | `ccr-c6c4e060-0l41l0` (sesión en la nube; sale de `claude/arranque`) |
 | **Fase / tarea** | gart-H9 cerrado y bloque revisado (3 hallazgos aplicados, 4 leves en `docs/records/pending.md`); Q-15 a aplicada (floats ≥ 2^53 rechazados). Antes: bloque gart-H1/H2 revisado (10 hallazgos aplicados, 4 leves en `docs/records/pending.md`). Presupuesto de compactaciones: 0 |
 | **Último punto estable** | el commit `feat(gart-H9)` |
-| **Siguiente paso** | Tras `main`: gart-H12 (barrido de `gart/canon.py`), luego gart-H3 |
+| **Siguiente paso** | PR #1 (https://github.com/Zeldris/galivelop-artifacts/pull/1) abierto con la marca de 39bb1bb: fusionar con el CI en verde; luego gart-H12 (barrido de `gart/canon.py`) y gart-H3 |
 | **Check** | verde tras los arreglos de la revisión (unittest, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación
