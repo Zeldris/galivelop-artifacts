@@ -16,21 +16,21 @@ VALID = "valid"
 
 _CYCLE = {"$defs": {"a": {"$ref": "#/$defs/b"}, "b": {"$ref": "#/$defs/a"}}, "$ref": "#/$defs/a"}
 
-# row id -> (schema, instance, what gart does: "schema-error" | "valid" | "invalid:<code>")
+# row id -> (schema, instance, what gart does: ("schema-error", regex of the reason) | "valid" | "invalid:<code>")
 PROBES = {
     "D01": ({"type": "number"}, INF, "invalid:type"),
     "D02": ({"type": "object"}, object(), "invalid:type"),
     "D03": ({"pattern": "^\\d$"}, "١", "invalid:pattern"),
-    "D04": ({"minimum": NAN}, 5, SCHEMA_ERROR),
-    "D05": ({"minimum": "1"}, 5, SCHEMA_ERROR),
-    "D06": ({"minLength": -1}, "a", SCHEMA_ERROR),
-    "D07": ({"enum": []}, 1, SCHEMA_ERROR),
-    "D08": ({"required": "a"}, {}, SCHEMA_ERROR),
-    "D09": ({"properties": []}, {}, SCHEMA_ERROR),
-    "D10": ({"type": []}, 1, SCHEMA_ERROR),
-    "D11": ({"pattern": "("}, "a", SCHEMA_ERROR),
-    "D12": (_CYCLE, 1, SCHEMA_ERROR),
-    "D13": ({"$ref": "#"}, 1, SCHEMA_ERROR),
+    "D04": ({"minimum": NAN}, 5, (SCHEMA_ERROR, r"#/minimum: must be a finite number")),
+    "D05": ({"minimum": "1"}, 5, (SCHEMA_ERROR, r"#/minimum: must be a finite number")),
+    "D06": ({"minLength": -1}, "a", (SCHEMA_ERROR, r"#/minLength: must be a non-negative integer")),
+    "D07": ({"enum": []}, 1, (SCHEMA_ERROR, r"#/enum: must be a non-empty list")),
+    "D08": ({"required": "a"}, {}, (SCHEMA_ERROR, r"#/required: must be a list of strings")),
+    "D09": ({"properties": []}, {}, (SCHEMA_ERROR, r"#/properties: must be an object")),
+    "D10": ({"type": []}, 1, (SCHEMA_ERROR, r"#/type: must not be an empty list")),
+    "D11": ({"pattern": "("}, "a", (SCHEMA_ERROR, r"invalid pattern '\(': missing \)")),
+    "D12": (_CYCLE, 1, (SCHEMA_ERROR, r"cyclic reference '#/\$defs/a'")),
+    "D13": ({"$ref": "#"}, 1, (SCHEMA_ERROR, r"reference '#' is not supported")),
     "D14": ({"const": 1}, 2, "invalid:const"),
     "D15": ({"propertyNames": {"pattern": "^a"}}, {"b": 1}, "invalid:propertyNames"),
     "D16": ({"minProperties": 1}, {}, "invalid:minProperties"),
@@ -93,8 +93,10 @@ class DiffArtifactTests(unittest.TestCase):
     def test_probes_show_what_gart_does(self):
         for row_id, (schema, instance, expected) in PROBES.items():
             with self.subTest(row=row_id):
-                if expected == SCHEMA_ERROR:
-                    with self.assertRaises(SchemaError):
+                if isinstance(expected, tuple):
+                    kind, reason = expected
+                    self.assertEqual(kind, SCHEMA_ERROR)
+                    with self.assertRaisesRegex(SchemaError, reason):
                         validate(instance, schema)
                 else:
                     got = validate(instance, schema)

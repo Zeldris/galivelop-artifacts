@@ -478,7 +478,41 @@ class AllOfTests(unittest.TestCase):
     def test_cycle_through_allof_is_a_schema_error(self):
         sch = {"$defs": {"a": {"allOf": [{"$ref": "#/$defs/a"}]}}, "$ref": "#/$defs/a"}
         with self.assertRaisesRegex(SchemaError, "cyclic reference '#/\\$defs/a'"):
-            validate(1, sch)
+            check_schema(sch)
+
+    def test_cycle_through_allof_reached_from_properties(self):
+        sch = {"$defs": {"a": {"allOf": [{"$ref": "#/$defs/a"}]}}, "properties": {"x": {"$ref": "#/$defs/a"}}}
+        with self.assertRaisesRegex(SchemaError, "cyclic reference '#/\\$defs/a'"):
+            check_schema(sch)
+
+    def test_cycle_through_then_and_else(self):
+        for branch in ("then", "else"):
+            with self.subTest(branch=branch):
+                sch = {"$defs": {"a": {"if": {}, branch: {"$ref": "#/$defs/a"}}}, "$ref": "#/$defs/a"}
+                with self.assertRaisesRegex(SchemaError, "cyclic reference '#/\\$defs/a'"):
+                    check_schema(sch)
+
+    def test_recursion_down_the_instance_is_not_a_cycle(self):
+        for body in ({"properties": {"n": {"$ref": "#/$defs/t"}}}, {"items": {"$ref": "#/$defs/t"}}):
+            with self.subTest(body=list(body)):
+                sch = {"$defs": {"t": body}, "$ref": "#/$defs/t"}
+                check_schema(sch)
+                self.assertEqual(validate({"n": {"n": 1}} if "properties" in body else [[1]], sch), [])
+
+
+class SortKeyTests(unittest.TestCase):
+    def test_huge_digit_key_is_not_an_overflow(self):
+        got = validate({"1" * 5000: 1}, {"additionalProperties": False})
+        self.assertEqual([(e.code, e.params["name"]) for e in got], [("additionalProperties", "1" * 5000)])
+
+    def test_numeric_order_is_kept(self):
+        errors = validate({str(i): 1 for i in (10, 9, 2, 100)} | {"01": 1, "1": 1, "a": 1},
+                          {"additionalProperties": False})
+        order = [e.path for e in errors]
+        self.assertLess(order.index("/9"), order.index("/10"))
+        self.assertLess(order.index("/10"), order.index("/100"))
+        self.assertEqual(order[:2], ["/01", "/1"])
+        self.assertEqual(order[-1], "/a")
 
 
 class IfThenElseTests(unittest.TestCase):

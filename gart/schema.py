@@ -150,6 +150,30 @@ def _check(schema: Any, root: Any, where: str, seen: set) -> None:
                 raise SchemaError(f"{here}: must be a finite number")
         elif key == "$ref":
             _check_ref(root, value, where, seen)
+    try:
+        _walk_same_instance(schema, root, frozenset(), set())
+    except SchemaError as exc:
+        raise SchemaError(f"{where}: {exc}") from None
+
+
+def _walk_same_instance(schema: Any, root: Any, chain: frozenset, done: set) -> None:
+    """Follow what `_validate` follows without going down the instance (`$ref`, `allOf`, `if`, `then`, `else`)."""
+    if not isinstance(schema, dict):
+        return
+    key = (id(schema), chain)
+    if key in done:
+        return
+    done.add(key)
+    ref = schema.get("$ref")
+    if "$ref" in schema:
+        if ref in chain:
+            raise SchemaError(f"cyclic reference {ref!r}")
+        _walk_same_instance(_resolve(root, ref), root, chain | {ref}, done)
+    for sub in schema.get("allOf", []):
+        _walk_same_instance(sub, root, chain, done)
+    for name in ("if", "then", "else"):
+        if name in schema:
+            _walk_same_instance(schema[name], root, chain, done)
 
 
 def _check_ref(root: Any, ref: Any, where: str, seen_nodes: set) -> None:
@@ -334,11 +358,19 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
                 _validate(value[key], extra, root, _pointer(path, key), out)
 
 
+def _token_key(t: str) -> tuple:
+    """Digits-only tokens compare as numbers without `int()` (which fails on very long digit strings)."""
+    if t.isascii() and t.isdigit():
+        s = t.lstrip("0") or "0"
+        return (0, len(s), s, t)
+    return (1, 0, t, t)
+
+
 def _sort_key(error: ValidationError) -> tuple:
     """Order by path, comparing array indices as numbers (`/2` before `/10`), then by code."""
     tokens = [] if error.path == "" else error.path[1:].split("/")
     return (
-        tuple((0, int(t), t) if t.isascii() and t.isdigit() else (1, 0, t) for t in tokens),
+        tuple(_token_key(t) for t in tokens),
         error.code,
     )
 
