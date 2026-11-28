@@ -173,3 +173,17 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 - Recommendation: a: H3 se cierra con gdev, oi y gimg (los $ref de common.schema.json son del Registry); gvoice pasa entero al cerrar H4, y se apunta en gart.diff/0 y en el plan
 - Answer: a
 - Answered: 2026-11-28
+
+## Q-20
+- Refs: gart-H3
+- Status: open
+- Asked: 2026-11-28
+- Question: gart-H3 pide que los tests de las cuatro copias pasen contra gart: gdev y gimg pasan; gvoice falla 331 solo por $ref a archivo hermano (gart-H4) y oi 37 por forma del error (D24, D28, D31, D32). a) cerrar H3 así, con gvoice comprobado de nuevo al cerrar H4 y oi al migrar; b) dejar H3 abierto hasta que pasen las cuatro
+- Recommendation: a: gdev y gimg ya pasan enteras; gvoice solo falla por los $ref externos, que son el criterio de gart-H4, y oi por forma, que se adapta al migrar oi; esperar a que pasen las cuatro deja H3 abierto hasta H4
+
+## Q-21
+- Refs: gart-H3
+- Status: open
+- Asked: 2026-11-28
+- Question: D31: oi espera `actual` en el error type y `property` en required y additionalProperties; gart da `name` y type sin `actual`. a) gart añade `actual` al error type y se queda con `name`; b) gart no cambia y oi adapta todo; c) gart adopta los nombres de oi
+- Recommendation: a: `actual` lo usan los mensajes de oi y es barato; los nombres se quedan en `name` (lo usan gdev, gimg y gvoice) y oi cambia dos plantillas

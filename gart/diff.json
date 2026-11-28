@@ -181,10 +181,10 @@
         "gdev": "acepta; RecursionError al validar",
         "oi": "sin $ref",
         "gimg": "acepta; RecursionError al validar",
-        "gvoice": "SchemaError",
-        "gart": "SchemaError"
+        "gvoice": "SchemaError al validar; check_schema no lo ve",
+        "gart": "SchemaError en check_schema"
       },
-      "gart": "SchemaError: cyclic reference."
+      "gart": "SchemaError: cyclic reference, ya en check_schema (el test de gvoice que espera que check_schema no lo vea falla con gart)."
     },
     {
       "id": "D13",
@@ -405,7 +405,7 @@
     },
     {
       "id": "D29",
-      "rule": "$ref a un archivo hermano, p. ej. common.schema.json (7 de los 9 esquemas de gvoice)",
+      "rule": "$ref a un archivo hermano, p. ej. common.schema.json (7 de los 9 esquemas de gvoice); 328 tests de gvoice fallan solo por esto con gart",
       "kind": "pendiente",
       "outcomes": {
         "gdev": "sin $ref a archivo",
@@ -431,6 +431,34 @@
       },
       "gart": "Solo `code` y `params`; los mensajes llegan con el catálogo.",
       "milestone": "gart-H6"
+    },
+    {
+      "id": "D31",
+      "rule": "Parámetros del error en oi: required y additionalProperties dan `property`, type añade `actual` (17 tests de oi fallan con KeyError y 12 por params)",
+      "kind": "forma",
+      "outcomes": {
+        "gdev": "`name`; type sin `actual`",
+        "oi": "`property`; type con `actual`",
+        "gimg": "`name`; type sin `actual`",
+        "gvoice": "`name`; type sin `actual`",
+        "gart": "`name`; type sin `actual`"
+      },
+      "gart": "`name` en required y additionalProperties; type solo con `expected`. oi adapta sus plantillas al migrar.",
+      "consumer": "oi"
+    },
+    {
+      "id": "D32",
+      "rule": "Texto de SchemaError: lugar y motivo (6 tests de oi lo comprueban con assertRaisesRegex)",
+      "kind": "forma",
+      "outcomes": {
+        "gdev": "`#/a: motivo`",
+        "oi": "`schema/a/clave: motivo` con sus textos",
+        "gimg": "`#/a: motivo`",
+        "gvoice": "`#/a: motivo`",
+        "gart": "`#/a: motivo`"
+      },
+      "gart": "Puntero `#/...` del nodo y motivo en inglés; los tests deben buscar el motivo, no la frase de oi.",
+      "consumer": "oi"
     }
   ]
 }
