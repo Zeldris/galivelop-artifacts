@@ -149,7 +149,9 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 
 ## Q-17
 - Refs: gart-H3
-- Status: open
+- Status: answered
 - Asked: 2026-11-27
 - Question: License de gart-H10 (decidir antes de empezarlo): a) lista SPDX corta, sin expresiones, autor obligatorio; b) lista SPDX entera con expresiones; c) otra
 - Recommendation: a) MIT/Apache-2.0/BSD/ISC/CC-BY/CC0 como lista corta, sin expresiones OR/AND en /0, autor obligatorio; se amplía en un /1 si un consumidor lo pide
+- Answer: a
+- Answered: 2026-11-28
