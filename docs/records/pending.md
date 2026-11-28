@@ -4,6 +4,7 @@ Lo que queda abierto; la bitácora solo apunta aquí. Se añade y se quita en es
 
 ## Pendiente
 
+- gart-H4 (inv. 13): `gart.common/0` `License.id` solo comprueba la forma (SPDX o `LicenseRef-*`); falta la lista SPDX real que trae gart y el test del id inventado
 - Comprobar los vectores canónicos (inv. 9) en macOS, Windows y la Deck al cerrar gart-H9: lo hace la persona en cada máquina
 - DDD §8 (leves R11 y R12): License decidida (Q-17 a: lista SPDX corta sin expresiones, autor obligatorio), falta llevarla al DDD en gart-H10; gart.diff/0 se queda en /0
 - gart-H2: instancias muy anidadas dan RecursionError (900 niveles); límite de profundidad con error propio o documentarlo

@@ -1,0 +1,12 @@
+{
+  "gart": {"repo": "galivelop-artifacts"},
+  "gdev": {"repo": "galivelop-developer"},
+  "gforge": {"repo": null},
+  "gimg": {"repo": "galivelop-image-generator"},
+  "gmod": {"repo": null},
+  "grun": {"repo": null},
+  "gve": {"repo": null},
+  "gvoice": {"repo": "galivelop-voice-generator"},
+  "gworld": {"repo": null},
+  "oi": {"repo": "galivelop-client-catcher"}
+}

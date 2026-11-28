@@ -2,18 +2,21 @@
 
 from gart.canon import CanonError, canonical_bytes, content_hash, file_hash, loads_strict
 from gart.kind_id import KindId, KindIdError
+from gart.registry import Registry, fingerprint
 from gart.schema import SchemaError, ValidationError, check_schema, validate
 
 __all__ = [
     "CanonError",
     "KindId",
     "KindIdError",
+    "Registry",
     "SchemaError",
     "ValidationError",
     "canonical_bytes",
     "check_schema",
     "content_hash",
     "file_hash",
+    "fingerprint",
     "loads_strict",
     "validate",
 ]
