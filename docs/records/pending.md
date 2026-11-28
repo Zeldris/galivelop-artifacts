@@ -16,3 +16,14 @@ Lo que queda abierto; la bitácora solo apunta aquí. Se añade y se quita en es
 - gart-H12 (revisión de bloque): `_emit` comprueba el rango de enteros sobre la subclase y escribe `int(value)`: una subclase con `__int__`→2**60 y `__abs__`→1 pasa; usar `_check_int(int(value), path)`
 - gart-H12 (revisión de bloque): los `except RecursionError` dicen «nested too deeply» y los demás «nested deeper»: un código con dos motivos; una constante para el mensaje
 - gart-H12 (revisión de bloque): `_emit` repite a mano el escape de `_pointer`; usar `_pointer(key)`
+- gart-H3 (revisión de bloque): `dependentRequired` acepta nombres repetidos en una lista (`{'a':['c','c']}` da dos errores iguales); rechazarlos en `_check`
+- gart-H3 (revisión de bloque): `GART_COPIES` con una entrada sin `=` deja la ruta vacía y `tests/test_copies.py` revisa el propio repo; fallar con nombre o ruta vacíos
+- gart-H3 (revisión de bloque): `tests/test_copies.py` cuenta dos veces los `schemas/` anidados y falla con esquemas inválidos a propósito bajo `tests/**/schemas/`; deduplicar y excluir fixtures
+- gart-H3 (revisión de bloque): `tools/copies_probe.py --copy` sin valor da IndexError en vez del uso
+- gart-H3 (revisión de bloque): un esquema construido en Python que se contiene (`s['allOf']=[s]`) pasa `_check` y da RecursionError en `validate` (no sale de JSON)
+- gart-H3 (revisión de bloque): `test_row_ids_are_unique_and_sorted` compara ids como texto (`D100` < `D99`); limitar el patrón a dos dígitos o ordenar por número
+- gart-H3 (revisión de bloque): `copies_probe.py` quita la copia de `sys.path` tras importarla; un import perezoso sale como CRASH falso
+- gart-H3 (revisión de bloque): en `gart.diff/0`, D20 y D21 (gimg) no llevan `consumer` y D22 y D23 (gvoice) sí; unificar
+- gart-H3 (revisión de bloque): con la misma ruta y código (`required`, `dependentRequired`) el orden sigue el de las claves del esquema; decidir si la inv. 7 pide ordenar también por params
+- gart-H3 (revisión de bloque): `test_copies` cuenta como pendiente de gart-H4 un archivo con `$ref` externo aunque tenga además otro error (check_schema para en el primero)
+- gart-H3 (revisión de bloque): `check_schema` acepta `minProperties > maxProperties` (y lo mismo con Items y Length): esquema que nadie cumple
