@@ -19,7 +19,9 @@ import functools
 import json
 import math
 import re
-from typing import Any, NamedTuple
+from typing import Any, Callable, NamedTuple
+
+from gart.kind_id import KindId
 
 ANNOTATIONS = frozenset(["$schema", "$id", "title", "description", "default", "examples", "$comment"])
 VALIDATING = frozenset(
@@ -85,7 +87,20 @@ def _is_number(value: Any) -> bool:
     return _is_int(value) or (isinstance(value, float) and math.isfinite(value))
 
 
-def _check(schema: Any, root: Any, where: str, seen: set) -> None:
+# `resolver(base, target) -> (document_root, document_base)`: `target` is a kind id or a sibling file name, `base`
+# the folder of the referring document. It raises `SchemaError("unresolved reference ...")` for what it cannot find.
+Resolver = Callable[[Any, str], tuple]
+
+
+class Doc(NamedTuple):
+    """The document a schema node lives in: its root (where `#/pointer` starts), its base and the resolver."""
+
+    root: Any
+    base: Any
+    resolver: Resolver | None
+
+
+def _check(schema: Any, doc: Doc, where: str, seen: set) -> None:
     if isinstance(schema, bool):
         return
     if not isinstance(schema, dict):
@@ -103,25 +118,25 @@ def _check(schema: Any, root: Any, where: str, seen: set) -> None:
             if not isinstance(value, dict):
                 raise SchemaError(f"{here}: must be an object")
             for name, sub in value.items():
-                _check(sub, root, f"{here}/{name}", seen)
+                _check(sub, doc, f"{here}/{name}", seen)
         elif key in ("items", "propertyNames", "if"):
-            _check(value, root, here, seen)
+            _check(value, doc, here, seen)
         elif key in ("then", "else"):
             if "if" not in schema:
                 raise SchemaError(f"{here}: {key!r} requires 'if'")
-            _check(value, root, here, seen)
+            _check(value, doc, here, seen)
         elif key == "allOf":
             if not isinstance(value, list) or not value:
                 raise SchemaError(f"{here}: must be a non-empty list")
             for i, sub in enumerate(value):
-                _check(sub, root, f"{here}/{i}", seen)
+                _check(sub, doc, f"{here}/{i}", seen)
         elif key == "dependentRequired":
             if not isinstance(value, dict) or not all(
                 isinstance(names, list) and all(isinstance(n, str) for n in names) for names in value.values()
             ):
                 raise SchemaError(f"{here}: must be an object of lists of strings")
         elif key == "additionalProperties":
-            _check(value, root, here, seen)
+            _check(value, doc, here, seen)
         elif key == "enum":
             if not isinstance(value, list) or not value:
                 raise SchemaError(f"{here}: must be a non-empty list")
@@ -149,14 +164,14 @@ def _check(schema: Any, root: Any, where: str, seen: set) -> None:
             if not _is_number(value):
                 raise SchemaError(f"{here}: must be a finite number")
         elif key == "$ref":
-            _check_ref(root, value, where, seen)
+            _check_ref(doc, value, where, seen)
     try:
-        _walk_same_instance(schema, root, frozenset(), set())
+        _walk_same_instance(schema, doc, frozenset(), set())
     except SchemaError as exc:
         raise SchemaError(f"{where}: {exc}") from None
 
 
-def _walk_same_instance(schema: Any, root: Any, chain: frozenset, done: set) -> None:
+def _walk_same_instance(schema: Any, doc: Doc, chain: frozenset, done: set) -> None:
     """Follow what `_validate` follows without going down the instance (`$ref`, `allOf`, `if`, `then`, `else`)."""
     if not isinstance(schema, dict):
         return
@@ -166,41 +181,49 @@ def _walk_same_instance(schema: Any, root: Any, chain: frozenset, done: set) -> 
     done.add(key)
     ref = schema.get("$ref")
     if "$ref" in schema:
-        if ref in chain:
+        # Keyed by document too: the same `#/$defs/x` in two documents is not a cycle.
+        key = (id(doc.root), ref)
+        if key in chain:
             raise SchemaError(f"cyclic reference {ref!r}")
-        _walk_same_instance(_resolve(root, ref), root, chain | {ref}, done)
+        node, target = _resolve(doc, ref)
+        _walk_same_instance(node, target, chain | {key}, done)
     for sub in schema.get("allOf", []):
-        _walk_same_instance(sub, root, chain, done)
+        _walk_same_instance(sub, doc, chain, done)
     for name in ("if", "then", "else"):
         if name in schema:
-            _walk_same_instance(schema[name], root, chain, done)
+            _walk_same_instance(schema[name], doc, chain, done)
 
 
-def _check_ref(root: Any, ref: Any, where: str, seen_nodes: set) -> None:
+def _check_ref(doc: Doc, ref: Any, where: str, seen_nodes: set) -> None:
     """The reference resolves to a valid schema and its chain of bare references is not a cycle."""
     try:
-        node = _resolve(root, ref)
-        seen = {ref}
+        node, target = _resolve(doc, ref)
+        seen = {(id(doc.root), ref)}
         while True:
             if not isinstance(node, (dict, bool)):
                 raise SchemaError(f"reference {ref!r} does not point to a schema")
-            _check(node, root, ref, seen_nodes)
+            _check(node, target, ref, seen_nodes)
             if not (isinstance(node, dict) and "$ref" in node):
                 break
             nxt = node["$ref"]
             if not isinstance(nxt, str):
                 raise SchemaError("reference must be a string")
-            if nxt in seen:
+            key = (id(target.root), nxt)
+            if key in seen:
                 raise SchemaError(f"cyclic reference {ref!r}")
-            seen.add(nxt)
-            node = _resolve(root, nxt)
+            seen.add(key)
+            node, target = _resolve(target, nxt)
     except SchemaError as exc:
         raise SchemaError(f"{where}: {exc}") from None
 
 
-def check_schema(schema: Any) -> None:
-    """Raise `SchemaError` (naming the path and the cause) unless `schema` is in the supported subset."""
-    _check(schema, schema, "#", set())
+def check_schema(schema: Any, resolver: Resolver | None = None, base: Any = None) -> None:
+    """Raise `SchemaError` (naming the path and the cause) unless `schema` is in the supported subset.
+
+    Without a `resolver` only local `#/...` references are accepted. With one, `$ref` may also name a kind id or a
+    sibling document of `base` (see `Doc`).
+    """
+    _check(schema, Doc(schema, base, resolver), "#", set())
 
 
 def _is_type(value: Any, name: str) -> bool:
@@ -252,24 +275,41 @@ def _same(a: Any, b: Any) -> bool:
     return type(a) is type(b) and a == b
 
 
-def _resolve(root: Any, ref: Any) -> Any:
-    """The node a local `#/pointer` reference points to."""
+_SIBLING = re.compile(r"[a-z0-9][a-z0-9_-]*\.schema\.json")
+
+
+def _target(doc: Doc, name: str, ref: str) -> Doc:
+    """The document a `$ref` with a part before `#` points to: a kind id or a sibling file of the same folder."""
+    if doc.resolver is None:
+        raise SchemaError(f"reference {ref!r} is not local: only '#/...' is supported")
+    if ":" in name or "\\" in name or ".." in name:
+        raise SchemaError(f"reference {ref!r}: remote or unsafe reference ({name!r} has ':', '\\' or '..')")
+    if KindId.is_valid(name) or _SIBLING.fullmatch(name):
+        root, base = doc.resolver(doc.base, name)
+        return Doc(root, base, doc.resolver)
+    raise SchemaError(f"reference {ref!r}: {name!r} is neither a kind id nor a sibling file name")
+
+
+def _resolve(doc: Doc, ref: Any) -> tuple[Any, Doc]:
+    """The node a `$ref` points to and the document it lives in (the node's `#/pointer` is relative to it)."""
     if not isinstance(ref, str):
         raise SchemaError("reference must be a string")
-    if not ref.startswith("#"):
+    name, hashed, frag = ref.partition("#")
+    if name:
+        doc = _target(doc, name, ref)
+    elif not hashed:  # the empty text
         raise SchemaError(f"reference {ref!r} is not local: only '#/...' is supported")
-    if ref == "#":  # gdev, gimg and oi reject the whole root: strictest wins (gart.diff/0, B1)
+    elif ref == "#":  # gdev, gimg and oi reject the whole root: strictest wins (gart.diff/0, B1)
         raise SchemaError("reference '#' is not supported: only '#/...' is supported")
-    frag = ref[1:]
     if frag and not frag.startswith("/"):
         raise SchemaError(f"reference {ref!r}: fragment must be a JSON pointer")
-    node = root
+    node = doc.root
     for part in frag[1:].split("/") if frag else []:
         part = part.replace("~1", "/").replace("~0", "~")
         if not isinstance(node, dict) or part not in node:
             raise SchemaError(f"unresolved reference {ref!r}")
         node = node[part]
-    return node
+    return node, doc
 
 
 def _pointer(path: tuple, token: Any) -> tuple:
@@ -281,7 +321,7 @@ def _render(path: tuple) -> str:
     return "".join("/" + t.replace("~", "~0").replace("/", "~1") for t in path)
 
 
-def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: frozenset = frozenset()) -> None:
+def _validate(value: Any, schema: Any, doc: Doc, path: tuple, out: list, seen: frozenset = frozenset()) -> None:
     if schema is True:
         return
     if schema is False:
@@ -293,17 +333,19 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
 
     if "$ref" in schema:
         ref = schema["$ref"]
-        if ref in seen:
+        key = (id(doc.root), ref)
+        if key in seen:
             raise SchemaError(f"cyclic reference {ref!r}")
-        _validate(value, _resolve(root, ref), root, path, out, seen | {ref})
+        node, target = _resolve(doc, ref)
+        _validate(value, node, target, path, out, seen | {key})
     for sub in schema.get("allOf", []):
-        _validate(value, sub, root, path, out, seen)
+        _validate(value, sub, doc, path, out, seen)
     if "if" in schema:
         probe: list = []
-        _validate(value, schema["if"], root, path, probe, seen)
+        _validate(value, schema["if"], doc, path, probe, seen)
         branch = schema.get("else" if probe else "then")
         if branch is not None:
-            _validate(value, branch, root, path, out, seen)
+            _validate(value, branch, doc, path, out, seen)
     if "type" in schema:
         names = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
         if not any(_is_type(value, n) for n in names):
@@ -335,7 +377,7 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
             add("maxItems", limit=schema["maxItems"])
         if "items" in schema:
             for i, item in enumerate(value):
-                _validate(item, schema["items"], root, _pointer(path, i), out)
+                _validate(item, schema["items"], doc, _pointer(path, i), out)
 
     if isinstance(value, dict):
         props = schema.get("properties", {})
@@ -356,7 +398,7 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
         if "propertyNames" in schema:
             for key in keys:
                 sub: list = []
-                _validate(key, schema["propertyNames"], root, path, sub)
+                _validate(key, schema["propertyNames"], doc, path, sub)
                 if sub:
                     out.append(
                         ValidationError(
@@ -367,11 +409,11 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
         extra = schema.get("additionalProperties", True)
         for key in keys:
             if key in props:
-                _validate(value[key], props[key], root, _pointer(path, key), out)
+                _validate(value[key], props[key], doc, _pointer(path, key), out)
             elif extra is False:
                 out.append(ValidationError(_render(_pointer(path, key)), "additionalProperties", {"name": key}))
             elif extra is not True:
-                _validate(value[key], extra, root, _pointer(path, key), out)
+                _validate(value[key], extra, doc, _pointer(path, key), out)
 
 
 def _token_key(t: str) -> tuple:
@@ -391,13 +433,13 @@ def _sort_key(error: ValidationError) -> tuple:
     )
 
 
-def validate(instance: Any, schema: Any) -> list[ValidationError]:
+def validate(instance: Any, schema: Any, resolver: Resolver | None = None, base: Any = None) -> list[ValidationError]:
     """Every way `instance` breaks `schema`, in a stable order (by path, then code); `[]` when it conforms.
 
     Raises `SchemaError` if the schema itself is invalid.
     """
-    check_schema(schema)
+    check_schema(schema, resolver, base)
     errors: list[ValidationError] = []
-    _validate(instance, schema, schema, (), errors)
+    _validate(instance, schema, Doc(schema, base, resolver), (), errors)
     errors.sort(key=_sort_key)  # stable: DDD section 5 invariant 7
     return errors
