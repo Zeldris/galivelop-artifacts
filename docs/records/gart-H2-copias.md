@@ -31,3 +31,5 @@ Hereda el fallo de gimg con los `$ref` cíclicos.
 y orden estable de errores de oi. Fuera, apuntado para gart-H3: `allOf`, `if/then/else`, `maxProperties`,
 `dependentRequired`; los `$ref` a archivo hermano y `load_schema` esperan al `Registry` (gart-H4); los mensajes es/en,
 al catálogo (gart-H6).
+
+**Actualización (gart-H3, Q-18 a):** la decisión de H3 sustituye a la lista «Fuera» de arriba: `allOf`, `if/then/else`, `maxProperties` y `dependentRequired` entran en gart (`then` o `else` sin `if` es `SchemaError`). Las diferencias entre las copias están en `gart/diff.json` (`gart.diff/0`).

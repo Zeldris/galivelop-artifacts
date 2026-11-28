@@ -1,13 +1,16 @@
 """Strict validator for the JSON Schema subset of gart (stdlib only).
 
 Ported from gvoice (`gvoice/schema.py` at galivelop-voice-generator@1990d92), itself a copy of gimg. Dropped:
-- `allOf`, `if`/`then`/`else`, `maxProperties`, `dependentRequired`: outside the DDD section 6 keyword set (gart-H3).
 - `$ref` to sibling files, `load_schema`, the schemas folder and its cache: they belong to the `Registry` (gart-H4).
 - i18n and `format_error`: messages come with the catalog (gart-H6); `code` and `params` are the stable contract.
 Added from opportunity_intel: `enum` must be a non-empty list, and errors come in a stable order (by path, then code).
+Kept from the copies (gart-H3, Q-18): `maxProperties`, `dependentRequired` (gimg) and `allOf`, `if`/`then`/`else`
+(gvoice). `then` or `else` without `if` is a `SchemaError` (fail closed). The errors of `if` are never reported.
+Where the copies disagree on a rule the strictest wins (`gart.diff/0`): `$ref: "#"` is rejected, and path order
+compares array indices as numbers (`/2` before `/10`).
 
 Paths are JSON Pointers (RFC 6901): the root is `""`, and a root key `""` is `/`.
-Errors come sorted by `(path, code)`.
+Errors come sorted by `(path, code)`; the path compares token by token, array indices numerically.
 """
 
 from __future__ import annotations
@@ -22,15 +25,16 @@ ANNOTATIONS = frozenset(["$schema", "$id", "title", "description", "default", "e
 VALIDATING = frozenset(
     [
         "type", "properties", "required", "additionalProperties", "propertyNames",
-        "minProperties", "items", "minItems", "maxItems", "enum", "const", "pattern",
+        "minProperties", "maxProperties", "dependentRequired", "allOf", "if", "then", "else",
+        "items", "minItems", "maxItems", "enum", "const", "pattern",
         "minLength", "maxLength", "minimum", "maximum", "$ref", "$defs",
     ]
 )
 # Every `code` a ValidationError can carry (the keys the catalog will translate).
 CODES = (
     "required", "type", "enum", "const", "pattern", "minimum", "maximum",
-    "minLength", "maxLength", "minItems", "maxItems", "minProperties",
-    "additionalProperties", "propertyNames", "false",
+    "minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties",
+    "dependentRequired", "additionalProperties", "propertyNames", "false",
 )
 TYPES = ("object", "array", "string", "integer", "number", "boolean", "null")
 
@@ -100,8 +104,22 @@ def _check(schema: Any, root: Any, where: str, seen: set) -> None:
                 raise SchemaError(f"{here}: must be an object")
             for name, sub in value.items():
                 _check(sub, root, f"{here}/{name}", seen)
-        elif key in ("items", "propertyNames"):
+        elif key in ("items", "propertyNames", "if"):
             _check(value, root, here, seen)
+        elif key in ("then", "else"):
+            if "if" not in schema:
+                raise SchemaError(f"{here}: {key!r} requires 'if'")
+            _check(value, root, here, seen)
+        elif key == "allOf":
+            if not isinstance(value, list) or not value:
+                raise SchemaError(f"{here}: must be a non-empty list")
+            for i, sub in enumerate(value):
+                _check(sub, root, f"{here}/{i}", seen)
+        elif key == "dependentRequired":
+            if not isinstance(value, dict) or not all(
+                isinstance(names, list) and all(isinstance(n, str) for n in names) for names in value.values()
+            ):
+                raise SchemaError(f"{here}: must be an object of lists of strings")
         elif key == "additionalProperties":
             _check(value, root, here, seen)
         elif key == "enum":
@@ -124,7 +142,7 @@ def _check(schema: Any, root: Any, where: str, seen: set) -> None:
                 _compile(value)
             except (re.error, TypeError) as exc:
                 raise SchemaError(f"{where}: invalid pattern {value!r}: {exc}") from exc
-        elif key in ("minLength", "maxLength", "minItems", "maxItems", "minProperties"):
+        elif key in ("minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties"):
             if not _is_int(value) or value < 0:
                 raise SchemaError(f"{here}: must be a non-negative integer")
         elif key in ("minimum", "maximum"):
@@ -200,6 +218,8 @@ def _resolve(root: Any, ref: Any) -> Any:
         raise SchemaError("reference must be a string")
     if not ref.startswith("#"):
         raise SchemaError(f"reference {ref!r} is not local: only '#/...' is supported")
+    if ref == "#":  # gdev, gimg and oi reject the whole root: strictest wins (gart.diff/0, B1)
+        raise SchemaError("reference '#' is not supported: only '#/...' is supported")
     frag = ref[1:]
     if frag and not frag.startswith("/"):
         raise SchemaError(f"reference {ref!r}: fragment must be a JSON pointer")
@@ -236,6 +256,14 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
         if ref in seen:
             raise SchemaError(f"cyclic reference {ref!r}")
         _validate(value, _resolve(root, ref), root, path, out, seen | {ref})
+    for sub in schema.get("allOf", []):
+        _validate(value, sub, root, path, out, seen)
+    if "if" in schema:
+        probe: list = []
+        _validate(value, schema["if"], root, path, probe, seen)
+        branch = schema.get("else" if probe else "then")
+        if branch is not None:
+            _validate(value, branch, root, path, out, seen)
     if "type" in schema:
         names = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
         if not any(_is_type(value, n) for n in names):
@@ -276,6 +304,13 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
                 add("required", name=name)
         if "minProperties" in schema and len(value) < schema["minProperties"]:
             add("minProperties", limit=schema["minProperties"])
+        if "maxProperties" in schema and len(value) > schema["maxProperties"]:
+            add("maxProperties", limit=schema["maxProperties"])
+        for trigger, needed in schema.get("dependentRequired", {}).items():
+            if trigger in value:
+                for name in needed:
+                    if name not in value:
+                        add("dependentRequired", name=name, trigger=trigger)
         # Sorted by name, so the error list does not depend on insertion order.
         keys = sorted(value)
         if "propertyNames" in schema:
@@ -299,6 +334,15 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
                 _validate(value[key], extra, root, _pointer(path, key), out)
 
 
+def _sort_key(error: ValidationError) -> tuple:
+    """Order by path, comparing array indices as numbers (`/2` before `/10`), then by code."""
+    tokens = [] if error.path == "" else error.path[1:].split("/")
+    return (
+        tuple((0, int(t), t) if t.isascii() and t.isdigit() else (1, 0, t) for t in tokens),
+        error.code,
+    )
+
+
 def validate(instance: Any, schema: Any) -> list[ValidationError]:
     """Every way `instance` breaks `schema`, in a stable order (by path, then code); `[]` when it conforms.
 
@@ -307,5 +351,5 @@ def validate(instance: Any, schema: Any) -> list[ValidationError]:
     check_schema(schema)
     errors: list[ValidationError] = []
     _validate(instance, schema, schema, (), errors)
-    errors.sort(key=lambda e: (e.path, e.code))  # stable: DDD section 5 invariant 7
+    errors.sort(key=_sort_key)  # stable: DDD section 5 invariant 7
     return errors

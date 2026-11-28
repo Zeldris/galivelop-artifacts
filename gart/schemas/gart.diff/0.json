@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gart.diff/0",
+  "description": "La tabla de diferencias entre las cuatro copias del validador (gdev, oi, gimg, gvoice) y gart: una fila por diferencia, con el resultado de cada copia y la conducta final de gart.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "copies", "rows"],
+  "properties": {
+    "schema": {"const": "gart.diff/0"},
+    "copies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "repo", "path", "commit"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9]*$"},
+          "repo": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"}
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rule", "kind", "outcomes", "gart"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^D[0-9]{2,}$"},
+          "rule": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["regla", "alcance", "forma", "pendiente"]},
+          "outcomes": {
+            "type": "object",
+            "required": ["gart"],
+            "propertyNames": {"pattern": "^[a-z][a-z0-9]*$"},
+            "additionalProperties": {"type": "string", "minLength": 1}
+          },
+          "gart": {"type": "string", "minLength": 1},
+          "consumer": {"type": "string", "pattern": "^[a-z][a-z0-9]*$"},
+          "milestone": {"type": "string", "pattern": "^gart-H[0-9]+$"}
+        }
+      }
+    }
+  }
+}

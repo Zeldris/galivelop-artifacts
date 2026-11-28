@@ -1,0 +1,436 @@
+{
+  "schema": "gart.diff/0",
+  "copies": [
+    {
+      "id": "gdev",
+      "repo": "Zeldris/galivelop-developer",
+      "path": "gdev/schema.py",
+      "commit": "014f7ff"
+    },
+    {
+      "id": "oi",
+      "repo": "Zeldris/galivelop-client-catcher",
+      "path": "opportunity_intel/schema.py",
+      "commit": "0edac88"
+    },
+    {
+      "id": "gimg",
+      "repo": "Zeldris/galivelop-image-generator",
+      "path": "gimg/schema.py",
+      "commit": "a3c314a"
+    },
+    {
+      "id": "gvoice",
+      "repo": "Zeldris/galivelop-voice-generator",
+      "path": "gvoice/schema.py",
+      "commit": "1990d92"
+    }
+  ],
+  "rows": [
+    {
+      "id": "D01",
+      "rule": "Instancia con inf o NaN (A1)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "no es número",
+        "oi": "acepta como número",
+        "gimg": "no es número",
+        "gvoice": "no es número",
+        "gart": "no es número"
+      },
+      "gart": "Rechaza: inf y NaN no son números (error type).",
+      "consumer": "oi"
+    },
+    {
+      "id": "D02",
+      "rule": "Instancia que no es JSON, p. ej. object() (A2)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "error type",
+        "oi": "acepta",
+        "gimg": "error type",
+        "gvoice": "error type",
+        "gart": "error type"
+      },
+      "gart": "Rechaza con error type.",
+      "consumer": "oi"
+    },
+    {
+      "id": "D03",
+      "rule": "pattern sin re.ASCII: \\d, \\w, \\s y (?i) casan fuera de ASCII (A3)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "solo ASCII",
+        "oi": "casa Unicode",
+        "gimg": "solo ASCII",
+        "gvoice": "solo ASCII",
+        "gart": "solo ASCII"
+      },
+      "gart": "Compila con re.ASCII y `$` casa solo al final.",
+      "consumer": "oi"
+    },
+    {
+      "id": "D04",
+      "rule": "minimum o maximum del esquema con NaN, inf o bool (A4)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "acepta",
+        "oi": "acepta NaN e inf; rechaza bool",
+        "gimg": "acepta",
+        "gvoice": "acepta",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError: debe ser un número finito."
+    },
+    {
+      "id": "D05",
+      "rule": "minimum o maximum del esquema que no es número (A5)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "acepta; falla al validar (TypeError)",
+        "oi": "SchemaError",
+        "gimg": "acepta; falla al validar (TypeError)",
+        "gvoice": "acepta; falla al validar (TypeError)",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError."
+    },
+    {
+      "id": "D06",
+      "rule": "Límites minLength, maxLength, minItems, maxItems, minProperties negativos, decimales o bool (A6, A7)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "acepta",
+        "oi": "SchemaError",
+        "gimg": "acepta",
+        "gvoice": "acepta",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError: debe ser un entero no negativo."
+    },
+    {
+      "id": "D07",
+      "rule": "enum vacío o que no es lista (A8)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "acepta",
+        "oi": "SchemaError",
+        "gimg": "acepta",
+        "gvoice": "acepta [] y rechaza lo que no es lista",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError: lista no vacía."
+    },
+    {
+      "id": "D08",
+      "rule": "required que no es lista de textos (A9)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "acepta",
+        "oi": "SchemaError",
+        "gimg": "acepta",
+        "gvoice": "SchemaError",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError."
+    },
+    {
+      "id": "D09",
+      "rule": "properties o $defs que no son objeto (A10)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "falla con AttributeError",
+        "oi": "SchemaError",
+        "gimg": "falla con AttributeError",
+        "gvoice": "SchemaError",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError."
+    },
+    {
+      "id": "D10",
+      "rule": "type con lista vacía (A11)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "acepta",
+        "oi": "SchemaError",
+        "gimg": "acepta",
+        "gvoice": "acepta",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError."
+    },
+    {
+      "id": "D11",
+      "rule": "validate() no llama a check_schema: un esquema malo (pattern, type, additionalProperties como texto, items en forma de lista, $ref a un nodo que no es esquema) falla tarde o no falla (A12, A13, A16)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "no comprueba; falla con PatternError o TypeError",
+        "oi": "comprueba",
+        "gimg": "no comprueba; falla con PatternError o TypeError",
+        "gvoice": "no comprueba; falla con PatternError, TypeError o AttributeError",
+        "gart": "comprueba siempre"
+      },
+      "gart": "validate() llama a check_schema primero y lanza SchemaError."
+    },
+    {
+      "id": "D12",
+      "rule": "$ref cíclico (A15)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "acepta; RecursionError al validar",
+        "oi": "sin $ref",
+        "gimg": "acepta; RecursionError al validar",
+        "gvoice": "SchemaError",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError: cyclic reference."
+    },
+    {
+      "id": "D13",
+      "rule": "$ref con la raíz entera, \"#\" (B1)",
+      "kind": "regla",
+      "outcomes": {
+        "gdev": "SchemaError",
+        "oi": "SchemaError",
+        "gimg": "SchemaError",
+        "gvoice": "acepta",
+        "gart": "SchemaError"
+      },
+      "gart": "SchemaError: solo se admite '#/...'."
+    },
+    {
+      "id": "D14",
+      "rule": "oi no tiene const",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "const",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "const",
+        "gvoice": "const",
+        "gart": "const"
+      },
+      "gart": "Admite const.",
+      "consumer": "oi"
+    },
+    {
+      "id": "D15",
+      "rule": "oi no tiene propertyNames",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "propertyNames",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "propertyNames",
+        "gvoice": "propertyNames",
+        "gart": "propertyNames"
+      },
+      "gart": "Admite propertyNames.",
+      "consumer": "oi"
+    },
+    {
+      "id": "D16",
+      "rule": "oi no tiene minProperties",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "minProperties",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "minProperties",
+        "gvoice": "minProperties",
+        "gart": "minProperties"
+      },
+      "gart": "Admite minProperties.",
+      "consumer": "oi"
+    },
+    {
+      "id": "D17",
+      "rule": "oi no tiene $ref ni $defs",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "$ref y $defs locales",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "$ref y $defs locales",
+        "gvoice": "$ref y $defs locales",
+        "gart": "$ref y $defs locales"
+      },
+      "gart": "Admite $ref local y $defs.",
+      "consumer": "oi"
+    },
+    {
+      "id": "D18",
+      "rule": "oi no tiene esquemas booleanos",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "true y false",
+        "oi": "SchemaError",
+        "gimg": "true y false",
+        "gvoice": "true y false",
+        "gart": "true y false"
+      },
+      "gart": "Admite true y false (error false).",
+      "consumer": "oi"
+    },
+    {
+      "id": "D19",
+      "rule": "oi rechaza las anotaciones default y examples",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "las acepta",
+        "oi": "SchemaError",
+        "gimg": "las acepta",
+        "gvoice": "las acepta",
+        "gart": "las acepta"
+      },
+      "gart": "Las acepta y las ignora: unión de las anotaciones de las copias (DDD 6, invariante 8).",
+      "consumer": "oi"
+    },
+    {
+      "id": "D20",
+      "rule": "gimg añade maxProperties",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "SchemaError (clave desconocida)",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "maxProperties",
+        "gvoice": "SchemaError (clave desconocida)",
+        "gart": "maxProperties"
+      },
+      "gart": "Admite maxProperties (Q-18)."
+    },
+    {
+      "id": "D21",
+      "rule": "gimg añade dependentRequired",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "SchemaError (clave desconocida)",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "dependentRequired",
+        "gvoice": "SchemaError (clave desconocida)",
+        "gart": "dependentRequired"
+      },
+      "gart": "Admite dependentRequired (Q-18); params {name, trigger}."
+    },
+    {
+      "id": "D22",
+      "rule": "gvoice añade allOf",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "SchemaError (clave desconocida)",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "SchemaError (clave desconocida)",
+        "gvoice": "allOf",
+        "gart": "allOf"
+      },
+      "gart": "Admite allOf (Q-18): informa los errores de cada subesquema.",
+      "consumer": "gvoice"
+    },
+    {
+      "id": "D23",
+      "rule": "gvoice añade if, then y else",
+      "kind": "alcance",
+      "outcomes": {
+        "gdev": "SchemaError (clave desconocida)",
+        "oi": "SchemaError (clave desconocida)",
+        "gimg": "SchemaError (clave desconocida)",
+        "gvoice": "if, then, else; acepta then o else sin if",
+        "gart": "if, then, else"
+      },
+      "gart": "Admite if/then/else (Q-18); then o else sin if es SchemaError. Los errores de if no se informan.",
+      "consumer": "gvoice"
+    },
+    {
+      "id": "D24",
+      "rule": "Orden de los errores",
+      "kind": "forma",
+      "outcomes": {
+        "gdev": "orden de recorrido",
+        "oi": "orden de recorrido",
+        "gimg": "orden de recorrido",
+        "gvoice": "orden de recorrido",
+        "gart": "por ruta y luego código"
+      },
+      "gart": "Ordena por (ruta, código): determinista (invariante 7)."
+    },
+    {
+      "id": "D25",
+      "rule": "Índices de array en el orden de la ruta",
+      "kind": "forma",
+      "outcomes": {
+        "gdev": "numérico (por recorrido)",
+        "oi": "numérico (por recorrido)",
+        "gimg": "numérico (por recorrido)",
+        "gvoice": "numérico (por recorrido)",
+        "gart": "numérico"
+      },
+      "gart": "Compara los índices como números: /2 antes que /10."
+    },
+    {
+      "id": "D26",
+      "rule": "Orden de las claves de un objeto",
+      "kind": "forma",
+      "outcomes": {
+        "gdev": "orden de inserción",
+        "oi": "orden de inserción",
+        "gimg": "orden de inserción",
+        "gvoice": "orden de inserción",
+        "gart": "orden alfabético"
+      },
+      "gart": "Recorre las claves ordenadas: no depende del orden de inserción."
+    },
+    {
+      "id": "D27",
+      "rule": "Parámetros del error propertyNames",
+      "kind": "forma",
+      "outcomes": {
+        "gdev": "{name, pattern}",
+        "oi": "sin propertyNames",
+        "gimg": "{name, pattern}",
+        "gvoice": "{name, pattern}",
+        "gart": "{name, reason, detail}"
+      },
+      "gart": "{name, reason, detail}: lleva la causa real del subesquema."
+    },
+    {
+      "id": "D28",
+      "rule": "Forma del error en oi: ruta `$.a[0]`, ruta del padre en additionalProperties, `keyword` en vez de `code`, claves sin escapar",
+      "kind": "forma",
+      "outcomes": {
+        "gdev": "puntero JSON, `code`",
+        "oi": "`$.a[0]`, `keyword`",
+        "gimg": "puntero JSON, `code`",
+        "gvoice": "puntero JSON, `code`",
+        "gart": "puntero JSON RFC 6901, `code`, ruta de la clave"
+      },
+      "gart": "ValidationError(path, code, params) con puntero JSON y claves escapadas (~0, ~1).",
+      "consumer": "oi"
+    },
+    {
+      "id": "D29",
+      "rule": "$ref a un archivo hermano, p. ej. common.schema.json (7 de los 9 esquemas de gvoice)",
+      "kind": "pendiente",
+      "outcomes": {
+        "gdev": "sin $ref a archivo",
+        "oi": "sin $ref",
+        "gimg": "sin $ref a archivo",
+        "gvoice": "lo resuelve load_schema",
+        "gart": "SchemaError: no es local"
+      },
+      "gart": "Hoy: SchemaError «is not local». Lo resuelve el Registry (Q-19 a).",
+      "consumer": "gvoice",
+      "milestone": "gart-H4"
+    },
+    {
+      "id": "D30",
+      "rule": "Mensajes es/en",
+      "kind": "pendiente",
+      "outcomes": {
+        "gdev": "catálogo propio",
+        "oi": "catálogo propio",
+        "gimg": "catálogo es/en",
+        "gvoice": "catálogo es/en",
+        "gart": "solo code y params"
+      },
+      "gart": "Solo `code` y `params`; los mensajes llegan con el catálogo.",
+      "milestone": "gart-H6"
+    }
+  ]
+}

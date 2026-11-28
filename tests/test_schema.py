@@ -190,13 +190,26 @@ class RefTests(unittest.TestCase):
         with self.assertRaisesRegex(SchemaError, r"#/\$defs/n: unsupported keyword 'format'"):
             check_schema({"$defs": {"n": {"format": "x"}}})
 
-    def test_ref_to_root(self):
-        sch = {"type": "object", "properties": {"child": {"$ref": "#"}}}
+    def test_recursive_ref_through_defs(self):
+        sch = {"$defs": {"node": {"type": "object", "properties": {"child": {"$ref": "#/$defs/node"}}}},
+               "$ref": "#/$defs/node"}
         self.assertEqual(errs({"child": {"child": 1}}, sch), [("/child/child", "type")])
 
-    def test_self_reference_is_a_schema_error_not_recursion(self):
-        with self.assertRaisesRegex(SchemaError, "cyclic reference"):
+    def test_ref_to_the_whole_root_is_rejected(self):
+        # gdev, gimg and oi reject it: strictest wins (gart.diff/0, B1).
+        for sch in ({"$ref": "#"}, {"type": "object", "properties": {"child": {"$ref": "#"}}},
+                    {"$defs": {"a": {"$ref": "#"}}}):
+            with self.subTest(schema=sch):
+                with self.assertRaisesRegex(SchemaError, r"reference '#' is not supported: only '#/\.\.\.' is supported"):
+                    check_schema(sch)
+        with self.assertRaisesRegex(SchemaError, "reference '#' is not supported"):
             validate(1, {"$ref": "#"})
+
+    def test_ref_hash_slash_keeps_its_behaviour(self):
+        with self.assertRaisesRegex(SchemaError, "unresolved reference '#/'"):
+            check_schema({"$ref": "#/"})
+
+    def test_self_reference_is_a_schema_error_not_recursion(self):
         with self.assertRaisesRegex(SchemaError, "cyclic reference"):
             check_schema({"$defs": {"a": {"$ref": "#/$defs/b"}, "b": {"$ref": "#/$defs/a"}},
                           "$ref": "#/$defs/a"})
@@ -237,7 +250,7 @@ class RefTargetTests(unittest.TestCase):
             check_schema({"$defs": {"a": {"$ref": {}}}, "$ref": "#/$defs/a"})
 
     def test_ref_back_to_an_ancestor_terminates(self):
-        sch = {"properties": {"a": {"$ref": "#"}}}
+        sch = {"$defs": {"n": {"properties": {"a": {"$ref": "#/$defs/n"}}}}, "$ref": "#/$defs/n"}
         check_schema(sch)
         self.assertEqual(errs({"a": {"a": {}}}, sch), [])
 
@@ -252,7 +265,7 @@ class SchemaCheckTests(unittest.TestCase):
                 self.assertEqual(errs("x", sch), [("", "type")])
 
     def test_unknown_keyword_is_rejected_naming_it(self):
-        for key in ("allOf", "if", "format", "maxProperties", "dependentRequired", "oneOf"):
+        for key in ("anyOf", "not", "format", "oneOf", "patternProperties"):
             with self.subTest(key=key):
                 with self.assertRaisesRegex(SchemaError, f"unsupported keyword '{key}'"):
                     check_schema({key: {}})
@@ -298,7 +311,8 @@ class SchemaCheckTests(unittest.TestCase):
             check_schema([])
 
     def test_keyword_sets(self):
-        self.assertEqual(len(VALIDATING), 18)
+        self.assertEqual(len(VALIDATING), 24)
+        self.assertTrue({"maxProperties", "dependentRequired", "allOf", "if", "then", "else"} <= VALIDATING)
         self.assertFalse(VALIDATING & ANNOTATIONS)
 
 
@@ -345,6 +359,23 @@ class OrderAndShapeTests(unittest.TestCase):
         with self.assertRaisesRegex(SchemaError, "must be a finite number"):
             check_schema({"minimum": float("inf")})
 
+    def test_array_indices_sort_numerically(self):
+        got = validate(["x"] * 12, {"items": {"type": "integer"}})
+        self.assertEqual([e.path for e in got], [f"/{i}" for i in range(12)])
+        nested = validate([{"a": "x"}] * 11, {"items": {"properties": {"a": {"type": "integer"}}}})
+        self.assertEqual([e.path for e in nested], [f"/{i}/a" for i in range(11)])
+
+    def test_sort_compares_path_tokens_not_the_rendered_string(self):
+        sch = {"properties": {"a": {"properties": {"b": {"type": "integer"}}},
+                              "a-": {"type": "integer"}, "a b": {"type": "integer"}}}
+        got = errs({"a": {"b": "x"}, "a-": "x", "a b": "x"}, sch)
+        self.assertEqual(got, [("/a/b", "type"), ("/a b", "type"), ("/a-", "type")])
+
+    def test_numeric_looking_keys_with_leading_zero_stay_distinct_and_stable(self):
+        sch = {"additionalProperties": False}
+        got = errs({"01": 1, "1": 1, "2": 1, "10": 1}, sch)
+        self.assertEqual([p for p, _ in got], ["/01", "/1", "/2", "/10"])
+
     def test_every_code_is_listed(self):
         sch = {"type": "object", "required": ["r"], "minProperties": 9, "propertyNames": {"pattern": "^q$"},
                "properties": {"p": {"enum": [1], "const": 2, "pattern": "x", "minLength": 9, "maxLength": 0,
@@ -355,6 +386,157 @@ class OrderAndShapeTests(unittest.TestCase):
         self.assertTrue({e.code for e in got} <= set(CODES))
         self.assertTrue({"required", "minProperties", "propertyNames", "false", "minItems", "type",
                          "additionalProperties", "pattern", "minLength"} <= {e.code for e in got})
+
+
+class MaxPropertiesTests(unittest.TestCase):
+    def test_valid_and_invalid(self):
+        sch = {"maxProperties": 1}
+        self.assertEqual(validate({"a": 1}, sch), [])
+        self.assertEqual(validate({}, sch), [])
+        self.assertEqual(validate({"a": 1, "b": 2}, sch), [ValidationError("", "maxProperties", {"limit": 1})])
+
+    def test_nested_path_and_other_types_ignored(self):
+        sch = {"properties": {"a": {"maxProperties": 0}}}
+        self.assertEqual(validate({"a": {"x": 1}}, sch), [ValidationError("/a", "maxProperties", {"limit": 0})])
+        self.assertEqual(validate([1, 2], {"maxProperties": 0}), [])
+
+    def test_limit_must_be_a_non_negative_integer(self):
+        for bad in (-1, 1.0, True, "1", None):
+            with self.subTest(limit=bad):
+                with self.assertRaisesRegex(SchemaError, "#/maxProperties: must be a non-negative integer"):
+                    check_schema({"maxProperties": bad})
+
+
+class DependentRequiredTests(unittest.TestCase):
+    SCHEMA = {"dependentRequired": {"card": ["number", "expiry"]}}
+
+    def test_valid(self):
+        self.assertEqual(validate({}, self.SCHEMA), [])
+        self.assertEqual(validate({"number": 1}, self.SCHEMA), [])
+        self.assertEqual(validate({"card": 1, "number": 2, "expiry": 3}, self.SCHEMA), [])
+        self.assertEqual(validate({"card": 1}, {"dependentRequired": {"card": []}}), [])
+
+    def test_missing_names_are_reported_at_the_object(self):
+        self.assertEqual(
+            validate({"card": 1, "number": 2}, self.SCHEMA),
+            [ValidationError("", "dependentRequired", {"name": "expiry", "trigger": "card"})],
+        )
+        got = validate({"card": 1}, self.SCHEMA)
+        self.assertEqual([e.params["name"] for e in got], ["number", "expiry"])
+
+    def test_nested_path(self):
+        sch = {"properties": {"o": self.SCHEMA}}
+        self.assertEqual(errs({"o": {"card": 1, "number": 2}}, sch), [("/o", "dependentRequired")])
+
+    def test_ignored_on_other_types(self):
+        self.assertEqual(validate([1], self.SCHEMA), [])
+
+    def test_shape_is_checked(self):
+        for bad in ([], "a", {"a": "b"}, {"a": [1]}, {"a": {"b": 1}}, {"a": None}):
+            with self.subTest(value=bad):
+                with self.assertRaisesRegex(SchemaError, "#/dependentRequired: must be an object of lists of strings"):
+                    check_schema({"dependentRequired": bad})
+
+
+class AllOfTests(unittest.TestCase):
+    def test_every_subschema_reports(self):
+        sch = {"allOf": [{"minimum": 5}, {"maximum": 3}, {"type": "integer"}]}
+        self.assertEqual(validate(4, sch), [ValidationError("", "maximum", {"limit": 3}),
+                                            ValidationError("", "minimum", {"limit": 5})])
+        self.assertEqual(validate(4, {"allOf": [{"minimum": 1}, {"maximum": 9}]}), [])
+
+    def test_nested_paths_and_siblings(self):
+        sch = {"allOf": [{"required": ["a"]}, {"properties": {"b": {"type": "integer"}}}], "minProperties": 3}
+        self.assertEqual(errs({"b": "x"}, sch),
+                         [("", "minProperties"), ("", "required"), ("/b", "type")])
+
+    def test_boolean_subschemas(self):
+        self.assertEqual(validate(1, {"allOf": [True]}), [])
+        self.assertEqual(validate(1, {"allOf": [True, False]}), [ValidationError("", "false", {})])
+
+    def test_ref_inside_is_followed(self):
+        sch = {"$defs": {"n": {"type": "integer"}}, "allOf": [{"$ref": "#/$defs/n"}]}
+        self.assertEqual(validate(1, sch), [])
+        self.assertEqual(errs("x", sch), [("", "type")])
+
+    def test_shape_is_checked(self):
+        for bad in ([], {}, "a", None):
+            with self.subTest(value=bad):
+                with self.assertRaisesRegex(SchemaError, "#/allOf: must be a non-empty list"):
+                    check_schema({"allOf": bad})
+
+    def test_subschemas_are_checked(self):
+        with self.assertRaisesRegex(SchemaError, r"#/allOf/1: unsupported keyword 'format'"):
+            check_schema({"allOf": [{}, {"format": "x"}]})
+        with self.assertRaisesRegex(SchemaError, r"#/allOf/0: schema must be an object"):
+            check_schema({"allOf": [1]})
+
+    def test_ref_inside_is_checked(self):
+        with self.assertRaisesRegex(SchemaError, "#/allOf/0: unresolved reference '#/\\$defs/nope'"):
+            check_schema({"allOf": [{"$ref": "#/$defs/nope"}]})
+
+    def test_cycle_through_allof_is_a_schema_error(self):
+        sch = {"$defs": {"a": {"allOf": [{"$ref": "#/$defs/a"}]}}, "$ref": "#/$defs/a"}
+        with self.assertRaisesRegex(SchemaError, "cyclic reference '#/\\$defs/a'"):
+            validate(1, sch)
+
+
+class IfThenElseTests(unittest.TestCase):
+    SCHEMA = {"if": {"properties": {"kind": {"const": "a"}}, "required": ["kind"]},
+              "then": {"required": ["x"]}, "else": {"required": ["y"]}}
+
+    def test_then_branch(self):
+        self.assertEqual(validate({"kind": "a", "x": 1}, self.SCHEMA), [])
+        self.assertEqual(validate({"kind": "a"}, self.SCHEMA), [ValidationError("", "required", {"name": "x"})])
+
+    def test_else_branch(self):
+        self.assertEqual(validate({"kind": "b", "y": 1}, self.SCHEMA), [])
+        self.assertEqual(validate({"kind": "b"}, self.SCHEMA), [ValidationError("", "required", {"name": "y"})])
+
+    def test_errors_of_if_are_never_reported(self):
+        sch = {"if": {"type": "integer", "minimum": 5}}
+        self.assertEqual(validate("x", sch), [])
+        self.assertEqual(validate(1, sch), [])
+
+    def test_missing_branch_is_ignored(self):
+        self.assertEqual(validate(1, {"if": {"type": "string"}, "then": False}), [])
+        self.assertEqual(validate(1, {"if": {"type": "integer"}, "else": False}), [])
+        self.assertEqual(validate(1, {"if": {"type": "integer"}, "then": False}),
+                         [ValidationError("", "false", {})])
+
+    def test_boolean_schemas(self):
+        self.assertEqual(validate(1, {"if": True, "then": False}), [ValidationError("", "false", {})])
+        self.assertEqual(validate(1, {"if": False, "else": False}), [ValidationError("", "false", {})])
+        self.assertEqual(validate(1, {"if": False, "then": False}), [])
+
+    def test_nested_paths(self):
+        sch = {"properties": {"o": self.SCHEMA}}
+        self.assertEqual(errs({"o": {"kind": "a"}}, sch), [("/o", "required")])
+
+    def test_then_or_else_without_if_is_a_schema_error(self):
+        for key in ("then", "else"):
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(SchemaError, f"#/{key}: '{key}' requires 'if'"):
+                    check_schema({key: {}})
+
+    def test_subschemas_are_checked(self):
+        for key in ("if", "then", "else"):
+            with self.subTest(key=key):
+                sch = {"if": {}, key: {"type": "bogus"}}
+                with self.assertRaisesRegex(SchemaError, "unknown type 'bogus'"):
+                    check_schema(sch)
+                with self.assertRaisesRegex(SchemaError, f"#/{key}: schema must be an object"):
+                    check_schema({"if": {}, key: 5})
+
+    def test_ref_inside_is_checked_and_followed(self):
+        for key in ("if", "then", "else"):
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(SchemaError, f"#/{key}: unresolved reference"):
+                    check_schema({"if": {}, key: {"$ref": "#/$defs/nope"}})
+        sch = {"$defs": {"n": {"type": "integer"}}, "if": {"$ref": "#/$defs/n"},
+               "then": {"$ref": "#/$defs/n"}, "else": {"$ref": "#/$defs/n"}}
+        self.assertEqual(validate(1, sch), [])
+        self.assertEqual(errs("x", sch), [("", "type")])
 
 
 if __name__ == "__main__":
