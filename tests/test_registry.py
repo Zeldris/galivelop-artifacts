@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -104,24 +105,79 @@ class NamingTest(Base):
         f = self.folder()
         f.put("oi.a/0.json", schema("oi.a/0"))
         f.put("oi.b/0.json", schema("oi.b/0", bogus=1))
+        f.put("x.schema.json", {"type": "string"})
         reg = Registry()
         before = reg.kinds()
-        with self.assertRaises(SchemaError):
+        with self.assertRaisesRegex(SchemaError, r"oi\.b/0: .*unsupported keyword 'bogus'"):
             reg.load(f.path, foreign=True)
         self.assertEqual(reg.kinds(), before)
+        with self.assertRaisesRegex(SchemaError, "unresolved reference 'x.schema.json'"):
+            reg.check_schema({"$ref": "x.schema.json"}, f.path)
 
     def test_not_a_folder(self):
         self.assertLoadFails("not a folder", "/nonexistent-gart-folder", foreign=True)
 
-    def test_same_kind_twice(self):
+    def test_same_kind_from_two_folders(self):
         f, g = self.folder(), self.folder()
         f.put("oi.thing/0.json", schema("oi.thing/0"))
-        g.put("oi.thing/0.json", schema("oi.thing/0"))
-        reg = Registry().load(f.path, foreign=True).load(g.path, foreign=True)  # same fingerprint: no-op
-        self.assertEqual(reg.kinds().count("oi.thing/0"), 1)
-        g.put("oi.thing/0.json", schema("oi.thing/0", description="changed"))
-        with self.assertRaisesRegex(SchemaError, r"oi\.thing/0: already loaded with a different schema"):
+        g.put("oi.thing/0.json", schema("oi.thing/0"))  # even with the same fingerprint
+        reg = Registry().load(f.path, foreign=True)
+        with self.assertRaises(SchemaError) as ctx:
             reg.load(g.path, foreign=True)
+        message = str(ctx.exception)
+        self.assertRegex(message, r"oi\.thing/0: already loaded from")
+        self.assertIn(f.path, message)
+        self.assertIn(g.path, message)
+
+    def test_reload_same_folder_is_a_noop(self):
+        f = self.folder()
+        f.put("oi.thing/0.json", schema("oi.thing/0"))
+        f.put("x.schema.json", {"type": "string"})
+        reg = Registry().load(f.path, foreign=True)
+        self.assertIs(reg.load(f.path, foreign=True), reg)
+        self.assertEqual(reg.kinds().count("oi.thing/0"), 1)
+
+    def test_reload_changed_folder_fails(self):
+        cases = {
+            "kind changed": (lambda f: f.put("oi.thing/0.json", schema("oi.thing/0", description="x")), "kinds:oi.thing/0"),
+            "sibling changed": (lambda f: f.put("x.schema.json", {"type": "integer"}), "siblings:x.schema.json"),
+            "sibling added": (lambda f: f.put("y.schema.json", {"type": "integer"}), "siblings:y.schema.json"),
+            "sibling deleted": (lambda f: os.remove(os.path.join(f.path, "x.schema.json")), "siblings:x.schema.json"),
+            "kind added": (lambda f: f.put("oi.more/0.json", schema("oi.more/0")), "kinds:oi.more/0"),
+        }
+        for label, (change, what) in cases.items():
+            with self.subTest(label):
+                f = self.folder()
+                f.put("oi.thing/0.json", schema("oi.thing/0", properties={"a": {"$ref": "x.schema.json"}}))
+                f.put("x.schema.json", {"type": "string"})
+                reg = Registry().load(f.path, foreign=True)
+                change(f)
+                with self.assertRaisesRegex(SchemaError, r"folder changed since it was loaded \(.*" + what.replace(".", r"\.")):
+                    reg.load(f.path, foreign=True)
+
+    def test_reload_does_not_resolve_against_a_deleted_sibling(self):
+        f = self.folder()
+        f.put("x.schema.json", {"type": "string"})
+        reg = Registry().load(f.path, foreign=True)
+        os.remove(os.path.join(f.path, "x.schema.json"))
+        f.put("oi.thing/0.json", schema("oi.thing/0", properties={"a": {"$ref": "x.schema.json"}}))
+        with self.assertRaisesRegex(SchemaError, r"folder changed since it was loaded \(.*siblings:x\.schema\.json"):
+            reg.load(f.path, foreign=True)
+        self.assertNotIn("oi.thing/0", reg.kinds())
+
+    def test_symlinks_rejected(self):
+        for label, link in (("kind file", "oi.a/0.json"), ("sibling", "x.schema.json"), ("directory", "oi.linked")):
+            with self.subTest(label):
+                f, outside = self.folder(), self.folder()
+                outside.put("real.json", schema("oi.a/0"))
+                outside.put("oi.real/0.json", schema("oi.real/0"))
+                os.makedirs(os.path.dirname(os.path.join(f.path, link)), exist_ok=True)
+                target = outside.path + "/oi.real" if label == "directory" else outside.path + "/real.json"
+                try:
+                    os.symlink(target, os.path.join(f.path, link), target_is_directory=(label == "directory"))
+                except (OSError, NotImplementedError, AttributeError):
+                    self.skipTest("no symlink support")
+                self.assertLoadFails(re.escape(link) + r": symbolic links are not allowed", f.path, foreign=True)
 
 
 class RefTest(Base):
@@ -280,6 +336,48 @@ class FingerprintTest(Base):
         with self.assertRaisesRegex(SchemaError, r"oi\.thing/1: fingerprint changed .*publish oi\.thing/2 instead"):
             Registry().pin(f.path)
         self.assertEqual(f.read("fingerprints.json"), before)
+
+    def test_stable_kind_cannot_ref_a_sibling_or_a_provisional_kind(self):
+        for ref, files in (
+            ("x.schema.json", {"x.schema.json": {"type": "string"}}),
+            ("oi.p/0", {"oi.p/0.json": schema("oi.p/0")}),
+            ("oi.p/0#/$defs/N", {"oi.p/0.json": {"title": "oi.p/0", "$defs": {"N": {"type": "integer"}}}}),
+        ):
+            with self.subTest(ref=ref):
+                f = self.folder()
+                f.put("oi.thing/1.json", schema("oi.thing/1", properties={"a": {"allOf": [{"$ref": ref}]}}))
+                for rel, content in files.items():
+                    f.put(rel, content)
+                reason = r"oi\.thing/1: reference '" + re.escape(ref) + r"' leaves the document"
+                with self.assertRaisesRegex(SchemaError, reason):
+                    Registry().pin(f.path)
+                self.assertFalse(os.path.exists(os.path.join(f.path, "fingerprints.json")))
+                f.put("fingerprints.json", {"oi.thing/1": HASH})
+                self.assertLoadFails(reason, f.path, foreign=True)
+
+    def test_stable_kind_may_ref_itself_and_stable_kinds(self):
+        f = self.folder()
+        f.put("oi.a/1.json", {"title": "oi.a/1", "$defs": {"N": {"type": "integer"}}})
+        f.put("oi.b/1.json", schema("oi.b/1", properties={"n": {"$ref": "oi.a/1#/$defs/N"}, "m": {"$ref": "#/$defs/M"}}, **{"$defs": {"M": {"type": "string"}}}))
+        Registry().pin(f.path)
+        reg = Registry().load(f.path, foreign=True)
+        self.assertEqual([e.code for e in reg.validate({"n": "x", "m": "y"}, "oi.b/1")], ["type"])
+
+    def test_pin_runs_the_load_checks(self):
+        cases = {
+            "bad schema": ({"oi.thing/1.json": schema("oi.thing/1", bogus=1)}, r"oi\.thing/1: .*unsupported keyword 'bogus'"),
+            "wrong title": ({"oi.thing/1.json": schema("oi.other/1")}, r"title 'oi\.other/1' must be the kind id"),
+            "stray file": ({"oi.thing/1.json": schema("oi.thing/1"), "stray.json": {}}, r"stray\.json: unexpected json file"),
+            "unresolved ref": ({"oi.thing/0.json": schema("oi.thing/0", properties={"a": {"$ref": "nope.schema.json"}}), "oi.thing/1.json": schema("oi.thing/1")}, r"oi\.thing/0: .*unresolved reference 'nope\.schema\.json'"),
+        }
+        for label, (files, reason) in cases.items():
+            with self.subTest(label):
+                f = self.folder()
+                for rel, content in files.items():
+                    f.put(rel, content)
+                with self.assertRaisesRegex(SchemaError, reason):
+                    Registry().pin(f.path)
+                self.assertFalse(os.path.exists(os.path.join(f.path, "fingerprints.json")))
 
     def test_pin_adds_missing_and_keeps_existing(self):
         f = self.folder()

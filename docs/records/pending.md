@@ -28,3 +28,9 @@ Lo que queda abierto; la bitácora solo apunta aquí. Se añade y se quita en es
 - gart-H3 (revisión de bloque): con la misma ruta y código (`required`, `dependentRequired`) el orden sigue el de las claves del esquema; decidir si la inv. 7 pide ordenar también por params
 - gart-H3 (revisión de bloque): `test_copies` cuenta como pendiente de gart-H4 un archivo con `$ref` externo aunque tenga además otro error (check_schema para en el primero)
 - gart-H3 (revisión de bloque): `check_schema` acepta `minProperties > maxProperties` (y lo mismo con Items y Length): esquema que nadie cumple
+- gart-H4 (revisión de bloque): `copies_tests` corre el `plain` de una copia y gart a la vez en el mismo cwd (riesgo de carrera)
+- gart-H4 (revisión de bloque): el patrón de `KindId` admite `..` en el nombre: un kind así carga pero no se puede referenciar con `$ref`
+- gart-H4 (revisión de bloque): `"<kind>#"` y `"<kind>"` a secas se aceptan como `$ref` mientras `"#"` se rechaza (gart.diff/0 B1)
+- gart-H4 (revisión de bloque): `Registry.validate` de un artefacto que no es objeto devuelve `required schema` en vez de un error de tipo
+- gart-H4 (revisión de bloque): el adaptador de gvoice en `copies_tests` ignora la carpeta de esquemas que pasa un test de gvoice y usa siempre `gvoice/schemas`
+- gart-H4 (revisión de bloque): los commits ab5ffdf y f5b27ca cambiaron código sin actualizar la bitácora

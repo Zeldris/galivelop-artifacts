@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-5bf1928c-gjj56w` (sesión en la nube; sale de `main` tras fusionar PR #1) |
-| **Fase / tarea** | gart-H4 (`Registry`) implementado y subido a la rama (sin push): revisión de bloque pendiente. Clones en solo lectura: `/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-image-generator`, `/home/user/zeldris/galivelop-voice-generator`. Presupuesto de compactaciones: 1 |
-| **Último punto estable** | el commit `feat(gart-H4)` de `tools/copies_tests.py` con gvoice a través de `Registry` (gvoice: 331 fallos a 4 de texto) |
-| **Siguiente paso** | revisión del bloque gart-H4 (`gart/schema.py` con resolver, `gart/registry.py`, `gart.common/0`, `namespaces.json`); pendiente la lista SPDX (inv. 13) |
+| **Fase / tarea** | gart-H4 (`Registry`) implementado; revisión de bloque hecha y arreglada (6 hallazgos). Clones en solo lectura: `/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-image-generator`, `/home/user/zeldris/galivelop-voice-generator`. Presupuesto de compactaciones: 1 |
+| **Último punto estable** | el commit `fix(gart-H4)` con los arreglos de la revisión del bloque (kinds estables sin `$ref` fuera de su documento, mismo kind de dos carpetas, recarga, symlinks, `pin` con las comprobaciones de `load`) |
+| **Siguiente paso** | comprobar el CI de la subida y cerrar gart-H4 con `roadmap`/plan si aplica; luego gart-H5 |
 | **Check** | verde (unittest con test_copies omitido sin `GART_COPIES` y en verde con él, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación

@@ -36,3 +36,5 @@ conducta más laxa:
   gvoice a gart.
 
 El «antes» (331) es la medición de gart-H3 de arriba: la suite entera tarda mucho, no se repitió.
+
+**Decisión (revisión de bloque, inv. 2):** un kind estable solo puede hacer `$ref` a su propio documento (`#/...`) y a otros kinds estables; un `$ref` a un archivo hermano o a un kind `/0` es `SchemaError` en `load` y en `pin`. Así su huella cubre todo lo que acepta (los destinos son estables, fijados y sujetos a la misma regla). Consecuencia: `gart.common/0` solo se puede usar desde kinds estables cuando pase a `/1`.

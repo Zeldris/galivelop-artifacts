@@ -56,8 +56,12 @@ def _scan(folder: str) -> tuple[dict, dict, dict | None]:
     kinds: dict[str, Any] = {}
     siblings: dict[str, Any] = {}
     pins: dict | None = None
-    for top, dirs, files in os.walk(folder):
+    for top, dirs, files in os.walk(folder, followlinks=False):
         dirs.sort()
+        for name in dirs + files:  # a link could point outside the folder or hide a kind: fail closed
+            if os.path.islink(os.path.join(top, name)):
+                rel_link = os.path.relpath(os.path.join(top, name), folder).replace(os.sep, "/")
+                raise SchemaError(f"{rel_link}: symbolic links are not allowed in a schema folder")
         rel_dir = os.path.relpath(top, folder)
         parts = [] if rel_dir == "." else rel_dir.split(os.sep)
         for name in sorted(files):
@@ -117,12 +121,50 @@ def _check_pins(pins: Any, kinds: dict) -> dict:
     return pins
 
 
+_DATA_KEYS = ("const", "enum", "default", "examples")  # values here are data, not schemas
+
+
+def _refs(node: Any) -> list[str]:
+    """Every `$ref` string in a schema document (data keywords are skipped)."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in _DATA_KEYS:
+                continue
+            if key == "$ref" and isinstance(value, str):
+                found.append(value)
+            else:
+                found.extend(_refs(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_refs(item))
+    return found
+
+
+def _check_stable_refs(kinds: dict) -> None:
+    """Invariant 2: a stable kind may `$ref` only its own document and other stable kinds (so its pin closes over them)."""
+    for kind in sorted(kinds):
+        if not KindId.parse(kind).stable:
+            continue
+        for ref in _refs(kinds[kind]):
+            name = ref.partition("#")[0]
+            if not name:
+                continue
+            if KindId.is_valid(name) and KindId.parse(name).stable:
+                continue
+            raise SchemaError(
+                f"{kind}: reference {ref!r} leaves the document: a stable kind may only reference itself ('#/...') "
+                "and other stable kinds, so that its fingerprint covers what it accepts"
+            )
+
+
 class Registry:
     """The schema folders a process has loaded. `Registry()` starts with gart's own (`gart/schemas`)."""
 
     def __init__(self) -> None:
         self._kinds: dict[str, dict] = {}  # kind -> {"schema", "fingerprint", "base"}
         self._siblings: dict[str, dict[str, dict]] = {}  # folder -> file name -> schema
+        self._folders: dict[str, dict] = {}  # folder -> {"kinds": {kind: fingerprint}, "siblings": {name: fingerprint}}
         self.load(OWN_SCHEMAS, owner="gart")
 
     # -- loading ---------------------------------------------------------------------------------------------
@@ -136,14 +178,25 @@ class Registry:
         folder = os.path.abspath(os.fspath(path))
         kinds, siblings, pins = _scan(folder)
         fingerprints = {kind: fingerprint(schema) for kind, schema in kinds.items()}
+        sibling_prints = {name: fingerprint(schema) for name, schema in siblings.items()}
+        stored = self._folders.get(folder)
+        if stored is not None:
+            now = {"kinds": fingerprints, "siblings": sibling_prints}
+            if stored == now:
+                return self
+            changed = sorted(
+                {f"{part}:{name}" for part in now for name in set(now[part]) | set(stored[part]) if now[part].get(name) != stored[part].get(name)}
+            )
+            raise SchemaError(f"{folder}: folder changed since it was loaded ({', '.join(changed)})")
         if owner is not None:
             for kind in sorted(kinds):
                 if KindId.parse(kind).namespace != owner:
                     raise SchemaError(f"{kind}: namespace is not that of owner {owner!r} (use foreign=True for a copy)")
         for kind in sorted(kinds):
             known = self._kinds.get(kind)
-            if known is not None and known["fingerprint"] != fingerprints[kind]:
-                raise SchemaError(f"{kind}: already loaded with a different schema (fingerprint differs)")
+            if known is not None:
+                raise SchemaError(f"{kind}: already loaded from {known['base']}, cannot load it from {folder}")
+        self._check_folder(folder, kinds, siblings)
         pins = _check_pins(pins, kinds)
         for kind in sorted(kinds):
             if KindId.parse(kind).stable:
@@ -154,16 +207,30 @@ class Registry:
                         f"{kind}: fingerprint {fingerprints[kind]} does not match {FINGERPRINTS} ({pins[kind]}); "
                         "a stable schema never changes: publish the next version"
                     )
-        # Every file is read, so references between them work in any order; check them with the folder in place.
-        staged = {kind: {"schema": kinds[kind], "fingerprint": fingerprints[kind], "base": folder} for kind in kinds}
+        for kind in kinds:
+            self._kinds[kind] = {"schema": kinds[kind], "fingerprint": fingerprints[kind], "base": folder}
+        self._siblings[folder] = dict(siblings)
+        self._folders[folder] = {"kinds": fingerprints, "siblings": sibling_prints}
+        return self
+
+    def _check_folder(self, folder: str, kinds: dict, siblings: dict) -> None:
+        """Every check of a scanned folder except its fingerprints: stable refs, then `check_schema` of each file.
+
+        Every file is read, so references between them work in any order. Refs inside `folder` resolve only against
+        what was scanned now, never against siblings stored from an earlier load of it.
+        """
+        _check_stable_refs(kinds)
 
         def resolver(base: Any, target: str) -> tuple:
             if KindId.is_valid(target):
-                entry = staged.get(target) or self._kinds.get(target)
+                if target in kinds:
+                    return kinds[target], folder
+                entry = self._kinds.get(target)
                 if entry is not None:
                     return entry["schema"], entry["base"]
-            elif base == folder and target in siblings:
-                return siblings[target], folder
+            elif base == folder:
+                if target in siblings:
+                    return siblings[target], folder
             else:
                 other = self._siblings.get(base, {}).get(target)
                 if other is not None:
@@ -174,10 +241,6 @@ class Registry:
             self._check(siblings[name], resolver, folder, name)
         for kind in sorted(kinds):
             self._check(kinds[kind], resolver, folder, kind)
-        for kind, entry in staged.items():
-            self._kinds.setdefault(kind, entry)
-        self._siblings.setdefault(folder, {}).update(siblings)
-        return self
 
     @staticmethod
     def _check(schema: Any, resolver: Any, folder: str, label: str) -> None:
@@ -189,11 +252,12 @@ class Registry:
     def pin(self, path: str | os.PathLike) -> dict:
         """Write `fingerprints.json` of a folder for its stable kinds; returns the entries written.
 
-        Missing entries are added. An existing entry that differs is never changed: `SchemaError` and the file stays as it
+        Like `load` it first runs every check but the fingerprint comparison. Missing entries are added. An existing entry that differs is never changed: `SchemaError` and the file stays as it
         was. Entries for a `/0` kind or a kind that is not in the folder are an error as well.
         """
         folder = os.path.abspath(os.fspath(path))
-        kinds, _siblings, pins = _scan(folder)
+        kinds, siblings, pins = _scan(folder)
+        self._check_folder(folder, kinds, siblings)
         pins = dict(_check_pins(pins, kinds))
         for kind in sorted(kinds):
             if not KindId.parse(kind).stable:
