@@ -441,9 +441,9 @@
         "oi": "`property`; type con `actual`",
         "gimg": "`name`; type sin `actual`",
         "gvoice": "`name`; type sin `actual`",
-        "gart": "`name`; type sin `actual`"
+        "gart": "`name`; type con `actual`"
       },
-      "gart": "`name` en required y additionalProperties; type solo con `expected`. oi adapta sus plantillas al migrar.",
+      "gart": "`name` en required y additionalProperties; type con `expected` y `actual` (tipo JSON del valor, `not-json` si no lo es; Q-21 a). oi cambia `property` por `name` en sus plantillas al migrar.",
       "consumer": "oi"
     },
     {

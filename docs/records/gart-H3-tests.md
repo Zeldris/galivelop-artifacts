@@ -11,4 +11,6 @@ y `validate` de gart (misma clase de error y forma de ruta que la copia). Clones
 | oi | 510 | 3 (`test_evidence*`, ajenos al validador) | 37 | params `property`/`actual` (D31), texto de `SchemaError` (D32), ruta y orden (D24, D28) |
 
 Ninguna diferencia nueva de conducta: gart es igual o más estricto en todas. Lo que falta para que las cuatro pasen
-es el `Registry` (gvoice, gart-H4) y la forma del error en oi (Q-20, Q-21).
+es el `Registry` (gvoice, gart-H4) y la forma del error en oi.
+
+**Cierre (Q-20 a, Q-21 a):** gart-H3 se cierra así; gvoice se vuelve a pasar con `copies_tests.py` al cerrar gart-H4 y oi al migrar (gart-H8). gart añade `actual` al error `type` y mantiene `name` (D31).

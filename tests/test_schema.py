@@ -16,17 +16,28 @@ class TypeTests(unittest.TestCase):
             "object": ({}, [1]), "array": ([], {}), "string": ("a", 1), "integer": (3, "3"),
             "number": (1.5, "1.5"), "boolean": (True, 0), "null": (None, 0),
         }
+        actuals = {"object": "array", "array": "object", "string": "integer", "integer": "string",
+                   "number": "string", "boolean": "integer", "null": "integer"}
         for name, (good, bad) in cases.items():
+            actual = actuals[name]
             with self.subTest(type=name):
                 self.assertEqual(validate(good, {"type": name}), [])
                 self.assertEqual(validate(bad, {"type": name}),
-                                 [ValidationError("", "type", {"expected": name})])
+                                 [ValidationError("", "type", {"expected": name, "actual": actual})])
+
+    def test_type_error_names_the_json_type_of_the_value(self):
+        cases = [(1.0, "integer"), (1.5, "number"), (True, "boolean"), ("1", "string"), (None, "null"),
+                 (float("inf"), "not-json"), (float("nan"), "not-json"), (object(), "not-json")]
+        for value, actual in cases:
+            with self.subTest(value=value):
+                self.assertEqual([e.params for e in validate(value, {"type": "array"})],
+                                 [{"expected": "array", "actual": actual}])
 
     def test_type_list(self):
         sch = {"type": ["string", "null"]}
         self.assertEqual(validate(None, sch), [])
         self.assertEqual(validate("a", sch), [])
-        self.assertEqual(validate(1, sch), [ValidationError("", "type", {"expected": "string/null"})])
+        self.assertEqual(validate(1, sch), [ValidationError("", "type", {"expected": "string/null", "actual": "integer"})])
 
     def test_bool_is_not_integer_or_number(self):
         for name in ("integer", "number"):
@@ -58,7 +69,7 @@ class ObjectKeywordTests(unittest.TestCase):
         sch = {"properties": {"a": {"properties": {"b": {"type": "integer"}}}}}
         self.assertEqual(validate({"a": {"b": 1}}, sch), [])
         self.assertEqual(validate({"a": {"b": "x"}}, sch),
-                         [ValidationError("/a/b", "type", {"expected": "integer"})])
+                         [ValidationError("/a/b", "type", {"expected": "integer", "actual": "string"})])
 
     def test_required(self):
         sch = {"required": ["a", "b"]}
@@ -74,7 +85,7 @@ class ObjectKeywordTests(unittest.TestCase):
     def test_additional_properties_schema(self):
         sch = {"properties": {"a": {}}, "additionalProperties": {"type": "integer"}}
         self.assertEqual(validate({"a": "free", "z": 2}, sch), [])
-        self.assertEqual(validate({"z": "x"}, sch), [ValidationError("/z", "type", {"expected": "integer"})])
+        self.assertEqual(validate({"z": "x"}, sch), [ValidationError("/z", "type", {"expected": "integer", "actual": "string"})])
 
     def test_additional_properties_true(self):
         self.assertEqual(validate({"z": 1}, {"additionalProperties": True}), [])
@@ -102,7 +113,7 @@ class ArrayKeywordTests(unittest.TestCase):
     def test_items(self):
         sch = {"items": {"type": "integer"}}
         self.assertEqual(validate([1, 2], sch), [])
-        self.assertEqual(validate([1, "x"], sch), [ValidationError("/1", "type", {"expected": "integer"})])
+        self.assertEqual(validate([1, "x"], sch), [ValidationError("/1", "type", {"expected": "integer", "actual": "string"})])
 
     def test_items_path_is_nested(self):
         sch = {"items": {"properties": {"id": {"type": "integer"}}}}
@@ -181,7 +192,7 @@ class RefTests(unittest.TestCase):
     def test_ref_into_defs(self):
         sch = {"$defs": {"n": {"type": "integer"}}, "properties": {"a": {"$ref": "#/$defs/n"}}}
         self.assertEqual(validate({"a": 1}, sch), [])
-        self.assertEqual(validate({"a": "x"}, sch), [ValidationError("/a", "type", {"expected": "integer"})])
+        self.assertEqual(validate({"a": "x"}, sch), [ValidationError("/a", "type", {"expected": "integer", "actual": "string"})])
 
     def test_defs_alone_validate_nothing(self):
         self.assertEqual(validate(1, {"$defs": {"n": {"type": "string"}}}), [])

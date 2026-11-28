@@ -223,6 +223,22 @@ def _is_type(value: Any, name: str) -> bool:
     return name == "number" or value.is_integer()
 
 
+def _type_name(value: Any) -> str:
+    """The JSON type of `value` for the `actual` param of a type error; `not-json` for inf, NaN or a non-JSON object."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float) and math.isfinite(value):
+        return "integer" if value.is_integer() else "number"
+    for name, kind in (("string", str), ("array", list), ("object", dict)):
+        if isinstance(value, kind):
+            return name
+    return "not-json"
+
+
 def _same(a: Any, b: Any) -> bool:
     """JSON equality: booleans are not numbers, 1 equals 1.0, deep for containers."""
     if isinstance(a, bool) or isinstance(b, bool):
@@ -291,7 +307,7 @@ def _validate(value: Any, schema: Any, root: Any, path: tuple, out: list, seen: 
     if "type" in schema:
         names = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
         if not any(_is_type(value, n) for n in names):
-            add("type", expected="/".join(names))
+            add("type", expected="/".join(names), actual=_type_name(value))
             return
     if "enum" in schema and not any(_same(value, v) for v in schema["enum"]):
         add("enum", allowed=", ".join(json.dumps(v) for v in schema["enum"]))
