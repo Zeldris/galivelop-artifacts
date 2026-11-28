@@ -255,6 +255,10 @@ class Registry:
             return [ValidationError("/schema", "kind_unknown", {"kind": kind})]
         return validate(artifact, entry["schema"], self._resolve, entry["base"])
 
+    def check_schema(self, schema: Any, base: str | os.PathLike | None = None) -> None:
+        """`gart.schema.check_schema` with this registry's references; sibling refs resolve in the loaded folder `base`."""
+        check_schema(schema, self._resolve, None if base is None else os.path.abspath(os.fspath(base)))
+
     def validate_schema(self, instance: Any, schema: Any, base: str | os.PathLike | None = None) -> list[ValidationError]:
         """Errors of `instance` against an unregistered `schema`; its sibling refs resolve in the loaded folder `base`."""
         return validate(instance, schema, self._resolve, None if base is None else os.path.abspath(os.fspath(base)))

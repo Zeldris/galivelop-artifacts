@@ -2,7 +2,8 @@
 
 Manual tool, like `copies_probe.py`: it needs the clones of the copies (two are private repos), so tests never import
 it. The swap is a `sitecustomize` on `PYTHONPATH` with an import hook, so it also reaches the subprocesses the copies'
-tests start. When the copy's schema module is imported, the hook replaces its `check_schema` and `validate` with
+tests start. For gvoice the adapters go through a `gart.Registry` loaded with its `schemas/` folder (foreign, so sibling
+`$ref` resolve; gart-H4). When the copy's schema module is imported, the hook replaces its `check_schema` and `validate` with
 adapters over gart: same exception class and error type as the copy (for oi, `SchemaFailure` with `$.a[0]` paths), so
 only behaviour differences fail. `load_schema`, `format_error` and the rest stay the copy's, and call the adapters.
 Run (repo root):
@@ -41,19 +42,36 @@ def _oi_path(pointer):
     return out
 
 
+def _registry(m):
+    """gvoice only: a Registry with its schemas folder as a foreign copy (its siblings resolve by `$ref`)."""
+    sys.path.insert(0, _ROOT)
+    try:
+        from gart.registry import Registry
+    finally:
+        sys.path.remove(_ROOT)
+    folder = str(m._SCHEMAS)
+    return Registry().load(folder, foreign=True), folder
+
+
 def _patch(m):
     g = _gart()
     oi = hasattr(m, "SchemaFailure")
+    reg = folder = None
+    if _MOD == "gvoice.schema":
+        reg, folder = _registry(m)
 
     def check_schema(schema, *args, **kwargs):
         try:
-            g.check_schema(schema)
+            if reg is not None:
+                reg.check_schema(schema, folder)
+            else:
+                g.check_schema(schema)
         except g.SchemaError as e:
             raise m.SchemaError(str(e)) from e
 
     def validate(instance, schema, *args, **kwargs):
         check_schema(schema)
-        errs = g.validate(instance, schema)
+        errs = reg.validate_schema(instance, schema, base=folder) if reg is not None else g.validate(instance, schema)
         if oi:
             return [m.SchemaFailure(_oi_path(e.path), e.code, dict(e.params)) for e in errs]
         return [m.ValidationError(e.path, e.code, dict(e.params)) for e in errs]
