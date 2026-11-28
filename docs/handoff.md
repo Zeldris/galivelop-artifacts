@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-5bf1928c-gjj56w` (sesión en la nube; sale de `main` tras fusionar PR #1) |
-| **Fase / tarea** | gart-H3 en curso: copias clonadas en solo lectura (`/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-image-generator`, `/home/user/zeldris/galivelop-voice-generator`); gdev y oi pasan `check_schema`, gimg y gvoice no (Q-18, Q-19 abiertas); comparación de comportamiento en un subagente. Presupuesto de compactaciones: 1 |
+| **Fase / tarea** | gart-H3 en curso: copias clonadas en solo lectura (`/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-image-generator`, `/home/user/zeldris/galivelop-voice-generator`); gdev y oi pasan `check_schema`, gimg y gvoice no (Q-18 a: se añaden maxProperties, dependentRequired, allOf, if/then/else y se amplía el §6; Q-19 a: los 7 esquemas de gvoice con `$ref` a archivo hermano esperan a gart-H4); comparación de comportamiento en un subagente. Presupuesto de compactaciones: 1 |
 | **Último punto estable** | el commit `docs(gart-H3)` de Q-18 y Q-19 |
-| **Siguiente paso** | gart-H3: respuestas a Q-18/Q-19 y tabla `gart.diff/0` con la comparación del subagente |
+| **Siguiente paso** | gart-H3: tabla `gart.diff/0` con la comparación del subagente |
 | **Check** | verde tras los arreglos de la revisión (unittest, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación

@@ -158,14 +158,18 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 
 ## Q-18
 - Refs: gart-H3
-- Status: open
+- Status: answered
 - Asked: 2026-11-28
 - Question: Los esquemas actuales usan palabras clave fuera del DDD §6: gimg maxProperties (brand-sheet, project-config) y dependentRequired (order); gvoice allOf + if/then (order, effect-chain). ¿a) se añaden las cuatro a gart (más else, por simetría) y se amplía el §6; b) los consumidores reescriben esos esquemas; c) otra?
 - Recommendation: a: sin ellas, 3 esquemas de gimg y 2 de gvoice no pasan check_schema (inv. 8) y no se pueden reescribir sin perder reglas; son ~60 líneas de stdlib con su test; se amplía §6 y se apunta en gart.diff/0 qué consumidor pide cada una
+- Answer: a
+- Answered: 2026-11-28
 
 ## Q-19
 - Refs: gart-H3
-- Status: open
+- Status: answered
 - Asked: 2026-11-28
 - Question: gvoice usa $ref a un archivo hermano (common.schema.json) en 7 de sus 9 esquemas, y eso es del Registry (gart-H4). ¿a) H3 se cierra con esos 7 pendientes de H4 (marcados en gart.diff/0) y gvoice se comprueba entero en H4; b) se adelanta a H3 un $ref a archivo hermano mínimo; c) otra?
 - Recommendation: a: H3 se cierra con gdev, oi y gimg (los $ref de common.schema.json son del Registry); gvoice pasa entero al cerrar H4, y se apunta en gart.diff/0 y en el plan
+- Answer: a
+- Answered: 2026-11-28
