@@ -194,28 +194,36 @@ file (format: header of scripts/questions.py). Answer by number: `questions.py a
 
 ## Q-22
 - Refs: gart-H4
-- Status: open
+- Status: answered
 - Asked: 2026-11-28
 - Question: gart-H4, nombre de un esquema en una carpeta del Registry: a) la ruta <ns>.<nombre>/<n>.json da el KindId (como gart/schemas/gart.diff/0.json) y el title debe coincidir; b) el KindId va en $id dentro del archivo y el nombre del archivo es libre; c) otra
 - Recommendation: a: es la forma que ya usa gart/schemas/gart.diff/0.json; el KindId sale de la ruta y no se repite dentro del archivo
+- Answer: a
+- Answered: 2026-11-28
 
 ## Q-23
 - Refs: gart-H4
-- Status: open
+- Status: answered
 - Asked: 2026-11-28
 - Question: gart-H4, $ref entre esquemas: a) por KindId ('gart.common/0#/$defs/ContentHash'), resuelto en el Registry, más el archivo hermano de la misma carpeta ('common.schema.json#/...', sin '/' ni '..') para las copias actuales; b) solo por ruta relativa de archivo; c) solo por KindId (gvoice cambia sus $ref al migrar)
 - Recommendation: a: un KindId no depende de dónde esté la carpeta; los *.schema.json hermanos de gvoice se aceptan solo como archivos sin KindId hasta migrar gvoice (gart-H8), y así gvoice pasa entero al cerrar H4
+- Answer: a
+- Answered: 2026-11-28
 
 ## Q-24
 - Refs: gart-H4
-- Status: open
+- Status: answered
 - Asked: 2026-11-28
 - Question: gart-H4, fingerprints de los esquemas estables: a) fingerprints.json en cada carpeta de esquemas, {KindId: 'sha256:<hex>'} del esquema canónico (JCS), solo para /n≥1, escrito por Registry.pin() y comprobado por Registry.load; b) dentro del VENDOR.json; c) en gart/namespaces.json
 - Recommendation: a: un archivo por carpeta, hecho con una orden y comprobado al cargar; los /0 no tienen fingerprint porque pueden cambiar sin migración; un /n≥1 sin entrada es error (falla cerrado)
+- Answer: a
+- Answered: 2026-11-28
 
 ## Q-25
 - Refs: gart-H4
-- Status: open
+- Status: answered
 - Asked: 2026-11-28
 - Question: gart-H4, alcance: a) entra gart/namespaces.json (los diez namespaces del DDD, con su repo) y gart/schemas/gart.common/0.json (ContentHash, ArtifactRef, License, Timestamp, Meta), y Registry.validate(artefacto) toma el KindId del campo 'schema' (el de gart.diff/0); b) solo el Registry, y namespaces y gart.common en otro hito
 - Recommendation: a: la tabla de ADR 0011 hace falta para el test de la invariante 12, y gart.common/0 llega en el mismo hito porque es el primer esquema propio al que otros apuntan por KindId
+- Answer: a
+- Answered: 2026-11-28

@@ -9,9 +9,9 @@
 | Campo | Valor |
 |---|---|
 | **Rama** | `ccr-5bf1928c-gjj56w` (sesión en la nube; sale de `main` tras fusionar PR #1) |
-| **Fase / tarea** | gart-H4 (`Registry`) empezado: diseño en preguntas Q-22 a Q-25, sin código todavía. Clones en solo lectura: `/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-image-generator`, `/home/user/zeldris/galivelop-voice-generator`. Presupuesto de compactaciones: 1 |
+| **Fase / tarea** | gart-H4 (`Registry`) empezado: diseño decidido (Q-22 a Q-25, todas a); implementación repartida a un gw-worker. Clones en solo lectura: `/home/user/galivelop-developer`, `/home/user/galivelop-client-catcher`, `/home/user/zeldris/galivelop-image-generator`, `/home/user/zeldris/galivelop-voice-generator`. Presupuesto de compactaciones: 1 |
 | **Último punto estable** | el commit `feat(gart-H3)` de `actual` en el error type |
-| **Siguiente paso** | apuntar las respuestas a Q-22..Q-25 y repartir gart-H4: `Registry` (carpetas locales, `$ref` entre esquemas, fingerprints); al cerrarlo, `tools/copies_tests.py --copy gvoice=...` sin los 331 fallos de D29 |
+| **Siguiente paso** | revisar el diff del worker de gart-H4: `Registry` (carpetas locales, `$ref` entre esquemas, fingerprints); al cerrarlo, `tools/copies_tests.py --copy gvoice=...` sin los 331 fallos de D29 |
 | **Check** | verde (unittest con test_copies omitido sin `GART_COPIES` y en verde con él, doctor sin FAIL, ci-local) |
 
 ## Para la próxima publicación
